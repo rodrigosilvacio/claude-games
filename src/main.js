@@ -1,4 +1,4 @@
-// Rumo ao Castelo: ponto de entrada. Phaser 4.2.1 é carregado como global (vendor/).
+// O Mundo do Pepe: ponto de entrada. Phaser 4.2.1 é carregado como global (vendor/).
 import { BootScene, TitleScene, EndScene } from './scenes/MenuScenes.js';
 import PlayScene from './scenes/PlayScene.js';
 import HudScene from './scenes/HudScene.js';

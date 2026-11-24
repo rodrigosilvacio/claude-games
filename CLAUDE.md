@@ -13,7 +13,7 @@ As skills em `.claude/skills/` vêm de
 - Sem engine definida ainda, o router pergunta ou recomenda uma (§7 do `router/SKILL.md`).
 - Para atualizar: clonar o repositório de origem e recopiar `skills/**/` e `router/` para `.claude/skills/`.
 
-## Projeto atual: Rumo ao Castelo
+## Projeto atual: O Mundo do Pepe
 
 - Engine: **Phaser 4.2.1** (global via `vendor/phaser-arcade-physics.min.js`, sem bundler). Skills: `phaser-core`, `phaser-arcade-physics`, `platformer`, `game-feel`.
 - Regra de arquitetura: lógica em `src/rules/` (sem import de Phaser), cenas só desenham e leem input.

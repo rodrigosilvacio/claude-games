@@ -1,4 +1,4 @@
-# Rumo ao Castelo
+# O Mundo do Pepe
 
 Jogo 2D de ação no navegador. Um herói com espada atravessa a floresta, enfrenta
 dinossauros em arenas que só abrem quando todos são derrotados e precisa vencer o

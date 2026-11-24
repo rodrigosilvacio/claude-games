@@ -25,5 +25,5 @@ export function serve(port = 8080) {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const port = Number(process.argv[2] ?? 8080);
   await serve(port);
-  console.log(`Rumo ao Castelo em http://localhost:${port}`);
+  console.log(`O Mundo do Pepe em http://localhost:${port}`);
 }

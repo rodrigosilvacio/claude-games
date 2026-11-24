@@ -58,7 +58,7 @@ export class TitleScene extends Phaser.Scene {
     rex.play('rex-walk');
 
     this.add
-      .text(W / 2, 92, 'RUMO AO CASTELO', { fontFamily: FONT, fontSize: '58px', fontStyle: 'bold', color: '#fff6dc', stroke: '#2a1a10', strokeThickness: 10 })
+      .text(W / 2, 92, 'O MUNDO DO PEPE', { fontFamily: FONT, fontSize: '58px', fontStyle: 'bold', color: '#fff6dc', stroke: '#2a1a10', strokeThickness: 10 })
       .setOrigin(0.5);
     this.add
       .text(W / 2, 150, 'Atravesse a floresta, vença os dinossauros e chegue ao castelo.', {
