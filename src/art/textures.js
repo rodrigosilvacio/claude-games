@@ -1017,6 +1017,10 @@ function hero(scene) {
       armB: [-7 - swing * 4, -34],
     };
   }
+  // corrida golpeando: mesmas pernas da corrida, braço da espada erguido
+  for (let i = 0; i < 6; i++) {
+    frames[`atkrun${i}`] = { ...frames[`run${i}`], lean: 3, armF: [15, -46], elbow: [2, 2], mouth: 1, cape: 1 };
+  }
   frames.jump = { legF: [0.9, -0.2], legB: [-0.1, -1.0], bob: 0, cape: 1.2, armF: [12, -44], armB: [-11, -44], mouth: 1 };
   frames.fall = { legF: [0.3, 0.1], legB: [-0.25, -0.1], bob: 0, cape: -0.6, armF: [12, -40], armB: [-12, -46] };
   frames.attack = { legF: [0.6, 0.15], legB: [-0.55, -0.25], bob: 2, lean: 3, cape: 0.9, armF: [15, -46], armB: [-10, -38], mouth: 1, elbow: [2, 2] };
@@ -1500,6 +1504,7 @@ export function buildAnimations(scene) {
   const f = (key, names) => names.map((frame) => ({ key, frame }));
   a.create({ key: 'hero-idle', frames: f('hero', ['idle0', 'idle1', 'idle2', 'idle3']), frameRate: 4, repeat: -1 });
   a.create({ key: 'hero-run', frames: f('hero', ['run0', 'run1', 'run2', 'run3', 'run4', 'run5']), frameRate: 14, repeat: -1 });
+  a.create({ key: 'hero-run-attack', frames: f('hero', ['atkrun0', 'atkrun1', 'atkrun2', 'atkrun3', 'atkrun4', 'atkrun5']), frameRate: 14, repeat: -1 });
   const rate = { raptor: 11, trike: 7, rex: 5 };
   for (const t of Object.keys(DINO_FRAMES)) {
     a.create({ key: `${t}-walk`, frames: f(t, ['walk0', 'walk1', 'walk2', 'walk3']), frameRate: rate[t], repeat: -1 });

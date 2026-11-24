@@ -49,16 +49,17 @@ export const DINOS = {
   },
   rex: {
     label: 'Rei Rex',
-    maxHp: 340,
-    damage: 25,
+    maxHp: 300,
+    damage: 20,
     patrolSpeed: 50,
     chaseSpeed: 120,
     aggroRange: 620,
     attackRange: 170,
-    windupMs: 680,
+    windupMs: 820, // aviso longo antes do bote
     lungeMs: 380,
     lungeSpeed: 430,
-    recoverMs: 820,
+    recoverMs: 1150, // janela para contra-atacar
+
     knockbackTaken: 40,
     poise: Infinity, // chefe: nunca é interrompido
     size: { w: 190, h: 142 },

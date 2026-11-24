@@ -4,6 +4,7 @@ import { createFighter, applyDamage, heal, HERO, DINOS, jumpVelocity } from '../
 import { createBrain, stepBrain, hurtBrain } from '../src/rules/dinoBrain.js';
 import {
   LEVEL,
+  GROUND_Y,
   createRun,
   tryStartEncounter,
   recordKill,
@@ -47,7 +48,7 @@ test('quantos golpes de espada cada dino aguenta', () => {
   const hits = (t) => Math.ceil(DINOS[t].maxHp / HERO.swordDamage);
   assert.equal(hits('raptor'), 2);
   assert.equal(hits('trike'), 5);
-  assert.equal(hits('rex'), 10);
+  assert.equal(hits('rex'), 9);
 });
 
 test('herói sobrevive a pelo menos 3 mordidas do Rex com vida cheia', () => {
@@ -146,10 +147,22 @@ test('maçãs valem vidas; ao cair perde uma e renasce na entrada da arena', () 
   assert.equal(loseLife(run), 0, 'sem vidas: fim de jogo');
 });
 
-test('todas as maçãs ficam fora das arenas ou alcançáveis por plataforma', () => {
+test('todas as maçãs são alcançáveis (no chão ou sobre uma plataforma)', () => {
   for (const p of LEVEL.pickups) {
+    if (p.y > GROUND_Y - 60) continue; // no chão
+
     const ledge = LEVEL.ledges.find((l) => p.x >= l.x && p.x <= l.x + l.w);
     assert.ok(ledge, `maçã em ${p.x} tem plataforma embaixo`);
     assert.ok(ledge.y - p.y < 56, 'herói de pé na plataforma alcança a maçã');
   }
+});
+
+test('a arena do chefe tem maçãs e refúgios acima do bote do Rex', () => {
+  const boss = LEVEL.encounters.find((e) => e.boss);
+  const apples = LEVEL.pickups.filter((p) => p.x > boss.x0 - 250 && p.x < boss.x1);
+  assert.ok(apples.length >= 5, `maçãs perto do chefe: ${apples.length}`);
+  const rexTop = DINOS.rex.size.h - DINOS.rex.body.oy; // altura do topo do corpo acima do chão
+  const refuges = LEVEL.ledges.filter((l) => l.x > boss.x0 && l.x + l.w < boss.x1);
+  assert.ok(refuges.length >= 2);
+  for (const l of refuges) assert.ok(GROUND_Y - l.y > rexTop, 'plataforma acima do corpo do Rex');
 });

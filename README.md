@@ -15,7 +15,8 @@ Rei Rex para entrar no castelo. Se a vida zerar, ele cai e não chega.
 Dicas: os dinossauros avisam antes do bote (param e tremem com a boca aberta). Recue ou
 pule por cima e contra-ataque enquanto eles se recuperam.
 
-**Vidas:** o herói começa com 3. Cada maçã (nas plataformas de pedra) vale **+1 vida**, até 9.
+**Vidas:** o herói começa com 3. Cada maçã vale **+1 vida**, até 9. São 9 maçãs, 5 delas ao
+redor do Rei Rex; as plataformas na arena dele são refúgios, porque o bote do Rex passa por baixo.
 Ao cair, perde uma vida e renasce na entrada da área onde estava, com energia cheia; os dinos
 dali voltam a patrulhar, mas continuam feridos. Sem vidas, é fim de jogo. Cada área liberada
 devolve +15 de energia.

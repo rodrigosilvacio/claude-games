@@ -54,12 +54,32 @@ check('maçã coletada', afterApple.fruits === before.fruits - 1, `${before.frui
 check('maçã vale +1 vida', afterApple.lives === before.lives + 1, `${before.lives} → ${afterApple.lives}`);
 check('HUD mostra as vidas', afterApple.hud === `× ${afterApple.lives}`, afterApple.hud);
 
+// 1b) golpear andando: as pernas continuam no ciclo de corrida e o herói não desacelera
+await page.keyboard.down('ArrowRight');
+await page.waitForTimeout(300);
+const xa = (await st()).x;
+await page.keyboard.press('KeyF');
+const frames = [];
+for (let i = 0; i < 6; i++) {
+  frames.push(await page.evaluate(() => window.game.scene.getScene('play').hero.sprite.frame.name));
+  await page.waitForTimeout(40);
+}
+const xb = (await st()).x;
+await page.screenshot({ path: `${outDir}feat-golpe-andando.png` });
+await page.keyboard.up('ArrowRight');
+const atkFrames = new Set(frames.filter((f) => f.startsWith('atkrun')));
+check('golpe andando usa quadros de corrida', atkFrames.size >= 2, frames.join(','));
+check('herói continua andando durante o golpe', xb - xa > 40, `${xa} → ${xb}`);
+await page.keyboard.down('ArrowLeft');
+await page.waitForTimeout(500);
+await page.keyboard.up('ArrowLeft');
+
 // 2) seta ← também move
 await page.keyboard.down('ArrowLeft');
 await page.waitForTimeout(400);
 await page.keyboard.up('ArrowLeft');
 const afterLeft = await st();
-check('seta ← move o herói', afterLeft.x < afterApple.x - 40, `${afterApple.x} → ${afterLeft.x}`);
+check('seta ← move o herói', afterLeft.x < xb - 40, `${xb} → ${afterLeft.x}`);
 
 // 3) cair numa arena: perde uma vida e renasce na entrada
 await page.keyboard.down('ArrowRight');

@@ -79,7 +79,7 @@ export default class Hero {
     // corrida com aceleração
     const dir = (input.right ? 1 : 0) - (input.left ? 1 : 0);
     if (dir !== 0 && !this.attack) this.facing = dir;
-    const target = dir * MOVE.runSpeed * (this.attack && onGround ? 0.35 : 1);
+    const target = dir * MOVE.runSpeed; // golpear não trava as pernas
     const accel = onGround ? MOVE.accelGround : MOVE.accelAir;
     const vx = body.velocity.x;
     const step = accel * dt;
@@ -101,10 +101,11 @@ export default class Hero {
     if (this.attack && now - this.attack.startedAt > HERO.attackCooldownMs) this.attack = null;
 
     // animação
+    const moving = Math.abs(body.velocity.x) > 30;
     if (now < this.hurtUntil) s.anims.stop(), s.setTexture('hero', 'hurt');
-    else if (this.attack) s.anims.stop(), s.setTexture('hero', 'attack');
     else if (!onGround) s.anims.stop(), s.setTexture('hero', body.velocity.y < 0 ? 'jump' : 'fall');
-    else if (Math.abs(body.velocity.x) > 30) s.anims.currentAnim?.key !== 'hero-run' && s.play('hero-run');
+    else if (moving) this.playRun(this.attack ? 'hero-run-attack' : 'hero-run');
+    else if (this.attack) s.anims.stop(), s.setTexture('hero', 'attack');
     else s.anims.currentAnim?.key !== 'hero-idle' && s.play('hero-idle');
     s.setFlipX(this.facing < 0);
 
@@ -112,6 +113,15 @@ export default class Hero {
     s.setAlpha(now < this.fighter.invulnUntil ? (Math.floor(now / 70) % 2 ? 0.35 : 1) : 1);
 
     this.placeSword(now);
+  }
+
+  /** Troca entre corrida normal e corrida golpeando sem perder o passo. */
+  playRun(key) {
+    const a = this.sprite.anims;
+    if (a.isPlaying && a.currentAnim?.key === key) return;
+    const wasRunning = a.isPlaying && a.currentAnim?.key.startsWith('hero-run');
+    const step = wasRunning ? a.currentFrame.index - 1 : 0;
+    this.sprite.play({ key, startFrame: step });
   }
 
   startAttack(now) {

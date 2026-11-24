@@ -44,6 +44,9 @@ export const LEVEL = {
     { x: 4650, y: 375, w: 150 },
     { x: 6100, y: 365, w: 170 },
     { x: 6420, y: 360, w: 150 },
+    // refúgios na arena do chefe: o bote do Rex passa por baixo
+    { x: 6720, y: 365, w: 140 },
+    { x: 6960, y: 360, w: 140 },
   ],
   // Maçãs: cada uma vale +1 vida
   pickups: [
@@ -53,6 +56,10 @@ export const LEVEL = {
     { x: 4725, y: 335 },
     { x: 6185, y: 325 },
     { x: 6495, y: 320 },
+    // reforço para o chefe
+    { x: 6360, y: 440 }, // no chão, logo na entrada da arena
+    { x: 6790, y: 325 },
+    { x: 7030, y: 320 },
   ],
 };
 
