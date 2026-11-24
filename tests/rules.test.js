@@ -10,6 +10,11 @@ import {
   canEnterCastle,
   totalDinos,
   encounterAt,
+  gainLife,
+  loseLife,
+  respawnPoint,
+  START_LIVES,
+  MAX_LIVES,
 } from '../src/rules/level.js';
 
 test('herói perde vida e fica invencível por um tempo', () => {
@@ -120,4 +125,31 @@ test('fase bem formada: arenas em ordem, inimigos dentro da arena, pulo alcança
   assert.equal(encounterAt(LEVEL.heroStartX), null, 'herói começa fora de arena');
   // pulo de 125 px com gravidade 1500: plataformas até ~110 px acima do chão
   assert.ok(Math.abs(jumpVelocity(125, 1500)) > 600);
+});
+
+test('maçãs valem vidas; ao cair perde uma e renasce na entrada da arena', () => {
+  const run = createRun();
+  assert.equal(run.lives, START_LIVES);
+  assert.equal(gainLife(run), true);
+  assert.equal(run.lives, START_LIVES + 1);
+  run.lives = MAX_LIVES;
+  assert.equal(gainLife(run), false, 'não passa do máximo');
+
+  run.lives = 2;
+  tryStartEncounter(run, 'riacho');
+  assert.equal(loseLife(run), 1);
+  const riacho = LEVEL.encounters.find((e) => e.id === 'riacho');
+  const p = respawnPoint(run, 2700);
+  assert.deepEqual(p, { x: riacho.x0 - 120, encounterId: 'riacho' });
+  assert.equal(run.active, null, 'arena reabre');
+  assert.equal(tryStartEncounter(run, 'riacho'), true, 'pode tentar de novo');
+  assert.equal(loseLife(run), 0, 'sem vidas: fim de jogo');
+});
+
+test('todas as maçãs ficam fora das arenas ou alcançáveis por plataforma', () => {
+  for (const p of LEVEL.pickups) {
+    const ledge = LEVEL.ledges.find((l) => p.x >= l.x && p.x <= l.x + l.w);
+    assert.ok(ledge, `maçã em ${p.x} tem plataforma embaixo`);
+    assert.ok(ledge.y - p.y < 56, 'herói de pé na plataforma alcança a maçã');
+  }
 });

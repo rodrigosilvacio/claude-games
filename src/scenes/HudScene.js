@@ -12,6 +12,9 @@ export default class HudScene extends Phaser.Scene {
     this.hpBar = this.add.graphics();
     this.hpText = this.add.text(52, 40, '', { fontFamily: FONT, fontSize: '14px', color: '#ffffff', stroke: '#1d1d28', strokeThickness: 4 });
 
+    this.add.image(24, 74, 'hero', 'idle0').setScale(0.42);
+    this.livesText = this.add.text(40, 62, '', { fontFamily: FONT, fontSize: '18px', fontStyle: 'bold', color: '#ffffff', stroke: '#1d1d28', strokeThickness: 5 });
+
     this.killText = this.add
       .text(W - 20, 16, '', { fontFamily: FONT, fontSize: '18px', fontStyle: 'bold', color: '#ffffff', stroke: '#1d1d28', strokeThickness: 5 })
       .setOrigin(1, 0);
@@ -27,6 +30,7 @@ export default class HudScene extends Phaser.Scene {
 
     const handlers = {
       'changedata-hero': (_p, v) => this.drawHp(v),
+      'changedata-lives': (_p, v) => this.drawLives(v),
       'changedata-kills': (_p, v) => this.killText.setText(`🦖 ${v.kills} / ${v.total}`),
       'changedata-progress': (_p, v) => this.drawProgress(v),
       'changedata-banner': (_p, v) => this.showBanner(v),
@@ -43,6 +47,7 @@ export default class HudScene extends Phaser.Scene {
     const k = this.registry.get('kills');
     if (k) this.killText.setText(`🦖 ${k.kills} / ${k.total}`);
     this.drawProgress(this.registry.get('progress') ?? 0);
+    this.drawLives(this.registry.get('lives') ?? 3);
     this.registry.set('boss', null);
     const b = this.registry.get('banner');
     if (b) this.showBanner(b);
@@ -62,6 +67,12 @@ export default class HudScene extends Phaser.Scene {
     if (ratio <= 0.25 && ratio > 0) {
       this.tweens.add({ targets: this.hpText, scale: 1.2, yoyo: true, duration: 120 });
     }
+  }
+
+  drawLives(n) {
+    const changed = this.livesText.text !== '' && this.livesText.text !== `× ${n}`;
+    this.livesText.setText(`× ${n}`);
+    if (changed) this.tweens.add({ targets: this.livesText, scale: 1.4, yoyo: true, duration: 160 });
   }
 
   drawProgress(p) {

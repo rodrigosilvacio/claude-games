@@ -11,7 +11,11 @@ import {
   recordKill,
   canEnterCastle,
   progress,
+  gainLife,
+  loseLife,
+  respawnPoint,
 } from '../rules/level.js';
+import { createBrain } from '../rules/dinoBrain.js';
 
 export default class PlayScene extends Phaser.Scene {
   constructor() {
@@ -133,7 +137,6 @@ export default class PlayScene extends Phaser.Scene {
     this.pickups = this.physics.add.staticGroup();
     for (const p of LEVEL.pickups) {
       const f = this.pickups.create(p.x, p.y, 'fruit').setDepth(8);
-      f.setData('heal', p.heal);
       this.tweens.add({ targets: f, y: p.y - 6, yoyo: true, repeat: -1, duration: 700, ease: 'Sine.inOut' });
     }
 
@@ -145,8 +148,10 @@ export default class PlayScene extends Phaser.Scene {
 
   setupInput() {
     const K = Phaser.Input.Keyboard.KeyCodes;
-    // Mão esquerda na fileira ASDFG: A/D movem, Espaço pula, F ou G atacam.
-    this.keys = this.input.keyboard.addKeys({ a: K.A, d: K.D, space: K.SPACE, f: K.F, g: K.G });
+    // Mão esquerda na fileira ASDFG (A/D movem, Espaço pula, F ou G atacam) ou setas (← → movem, ↑ pula).
+    this.keys = this.input.keyboard.addKeys({
+      a: K.A, d: K.D, space: K.SPACE, f: K.F, g: K.G, left: K.LEFT, right: K.RIGHT, up: K.UP,
+    });
     this.mouseAttack = false;
     if (!this.sys.game.device.input.touch) {
       this.input.on('pointerdown', (p) => { if (p.leftButtonDown()) this.mouseAttack = true; });
@@ -157,12 +162,12 @@ export default class PlayScene extends Phaser.Scene {
     const k = this.keys;
     const t = this.registry.get('touch') ?? {};
     const JD = Phaser.Input.Keyboard.JustDown;
-    const jumpHeld = k.space.isDown || !!t.jump;
-    const jumpKeyDown = JD(k.space);
+    const jumpHeld = k.space.isDown || k.up.isDown || !!t.jump;
+    const jumpKeyDown = JD(k.space) | JD(k.up);
     const attackKeyDown = JD(k.f) | JD(k.g);
     const input = {
-      left: k.a.isDown || !!t.left,
-      right: k.d.isDown || !!t.right,
+      left: k.a.isDown || k.left.isDown || !!t.left,
+      right: k.d.isDown || k.right.isDown || !!t.right,
       jumpHeld,
       jumpPressed: !!jumpKeyDown || (!!t.jump && !this.prevJumpHeld),
       jumpReleased: !jumpHeld && this.prevJumpHeld,
@@ -225,11 +230,16 @@ export default class PlayScene extends Phaser.Scene {
   // ------------------------------------------------------------ regras em jogo
 
   collectFruit(fruit) {
-    const gained = this.hero.heal(fruit.getData('heal'));
-    if (gained <= 0) return; // vida cheia: guarda a fruta para depois
+    if (!fruit.active) return;
     this.tweens.killTweensOf(fruit);
     fruit.disableBody(true, true);
-    this.popText(fruit.x, fruit.y - 10, `+${gained}`, '#7dff8a');
+    if (gainLife(this.run)) {
+      this.popText(fruit.x, fruit.y - 10, '+1 VIDA', '#7dff8a');
+    } else {
+      // vidas no máximo: a maçã ainda vale energia
+      const gained = this.hero.heal(30);
+      this.popText(fruit.x, fruit.y - 10, gained ? `+${gained}` : 'Vidas no máximo', '#7dff8a', 18);
+    }
     this.leaves.explode(10, fruit.x, fruit.y);
     this.syncRegistry();
   }
@@ -326,10 +336,36 @@ export default class PlayScene extends Phaser.Scene {
 
   onHeroDied() {
     this.ended = true;
+    const left = loseLife(this.run);
+    this.syncRegistry();
+    if (left > 0) {
+      const txt = left === 1 ? 'O herói caiu! Última vida...' : `O herói caiu! Restam ${left} vidas`;
+      this.registry.set('banner', { text: txt, ms: 1500, danger: true });
+      this.time.delayedCall(1500, () => this.respawn());
+      return;
+    }
     this.run.outcome = 'defeat';
     this.run.finishedAt = this.time.now;
-    this.registry.set('banner', { text: 'O herói caiu...', ms: 1800, danger: true });
+    this.registry.set('banner', { text: 'Sem vidas...', ms: 1800, danger: true });
     this.time.delayedCall(1800, () => this.finish());
+  }
+
+  respawn() {
+    const { x, encounterId } = respawnPoint(this.run, this.hero.x);
+    if (encounterId) {
+      this.openFences(encounterId);
+      // dinos da arena voltam a patrulhar; quem já levou golpes continua ferido
+      for (const d of this.dinos) {
+        if (d.alive && d.encounter.id === encounterId) d.brain = createBrain(d.sprite.x);
+      }
+      this.registry.set('boss', null);
+    }
+    this.hero.revive(x, GROUND_Y - 40, this.time.now);
+    this.lastGroundY = GROUND_Y;
+    this.cameras.main.flash(300, 255, 255, 255);
+    this.ended = false;
+    this.syncRegistry();
+    this.registry.set('banner', { text: 'Tente de novo!  →', ms: 1500 });
   }
 
   checkCastle() {
@@ -351,12 +387,14 @@ export default class PlayScene extends Phaser.Scene {
       total: this.run.total,
       timeMs: this.run.finishedAt - this.run.startedAt,
       hp: this.hero.fighter.hp,
+      lives: this.run.lives,
     });
   }
 
   syncRegistry() {
     this.registry.set('hero', { hp: this.hero.fighter.hp, max: this.hero.fighter.maxHp });
     this.registry.set('kills', { kills: this.run.kills, total: this.run.total });
+    this.registry.set('lives', this.run.lives);
   }
 
   // ------------------------------------------------------------ loop

@@ -17,6 +17,7 @@ As skills em `.claude/skills/` vêm de
 
 - Engine: **Phaser 4.2.1** (global via `vendor/phaser-arcade-physics.min.js`, sem bundler). Skills: `phaser-core`, `phaser-arcade-physics`, `platformer`, `game-feel`.
 - Regra de arquitetura: lógica em `src/rules/` (sem import de Phaser), cenas só desenham e leem input.
-- Antes de commitar mudanças de jogo: `npm test` e `npm run smoke` (o robô precisa vencer).
+- Antes de commitar mudanças de jogo: `npm test`, `npm run smoke` (o robô precisa vencer) e `npm run features`.
 - Arte é procedural (Canvas 2D) em `src/art/textures.js`, seguindo a direção de arte no topo do arquivo (luz do sol à direita, contorno #2a1d24, perspectiva atmosférica). Mudanças de arte passam pela skill `create-game-assets`.
-- Controles: A/D movem, Espaço pula, F/G espada (mão esquerda na fileira ASDFG).
+- Controles: A/D ou ←/→ movem, Espaço ou ↑ pula, F/G espada.
+- Vidas: começa com 3, maçã = +1 vida (máx. 9); ao cair renasce na entrada da arena.

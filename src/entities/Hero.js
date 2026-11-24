@@ -162,6 +162,21 @@ export default class Hero {
     return heal(this.fighter, amount);
   }
 
+  /** Renasce com vida cheia e um tempo de invencibilidade. */
+  revive(x, y, now) {
+    this.fighter = createFighter(HERO.maxHp);
+    this.fighter.invulnUntil = now + 1500;
+    this.attack = null;
+    this.hurtUntil = 0;
+    const s = this.sprite;
+    s.setTexture('hero', 'idle0').setAlpha(1);
+    s.body.setSize(22, 56).setOffset(19, 24);
+    s.setPosition(x, y);
+    s.body.reset(x, y);
+    this.facing = 1;
+    s.play('hero-idle');
+  }
+
   die() {
     const s = this.sprite;
     s.anims.stop();

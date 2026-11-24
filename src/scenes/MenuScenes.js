@@ -69,7 +69,7 @@ export class TitleScene extends Phaser.Scene {
     const touch = this.sys.game.device.input.touch;
     const controls = touch
       ? 'Use os botões na tela:  ◀ ▶ mover   ⤒ pular   ⚔ atacar'
-      : 'A / D: mover      Espaço: pular      F ou G: espada';
+      : 'A D ou ← →: mover      Espaço ou ↑: pular      F ou G: espada      Maçã = +1 vida';
     this.add
       .text(W / 2, 196, controls, { fontFamily: FONT, fontSize: '16px', color: '#fff6dc', stroke: '#1d1d28', strokeThickness: 4 })
       .setOrigin(0.5);
@@ -96,7 +96,7 @@ export class EndScene extends Phaser.Scene {
 
   create() {
     const W = this.scale.width;
-    const { outcome, kills, total, timeMs, hp } = this.result;
+    const { outcome, kills, total, timeMs, hp, lives } = this.result;
     const won = outcome === 'victory';
     backdrop(this);
     this.add.rectangle(0, 0, W, 540, won ? 0x1a2a10 : 0x2a0d10, won ? 0.35 : 0.55).setOrigin(0);
@@ -123,7 +123,7 @@ export class EndScene extends Phaser.Scene {
     const secs = Math.round(timeMs / 1000);
     const time = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
     const stats = won
-      ? `Dinossauros derrotados: ${kills}/${total}     Tempo: ${time}     Vida restante: ${hp}`
+      ? `Dinossauros: ${kills}/${total}     Tempo: ${time}     Energia: ${hp}     Vidas: ${lives}`
       : `Dinossauros derrotados: ${kills}/${total}     Tempo: ${time}`;
     this.add
       .text(W / 2, 200, stats, { fontFamily: FONT, fontSize: '17px', color: '#fff6dc', stroke: '#1d1d28', strokeThickness: 4 })

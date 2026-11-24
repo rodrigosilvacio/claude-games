@@ -8,13 +8,17 @@ Rei Rex para entrar no castelo. Se a vida zerar, ele cai e não chega.
 
 | Ação | Teclado | Celular/tablet |
 | :--- | :--- | :--- |
-| Mover | A (esquerda) e D (direita) | ◀ ▶ |
-| Pular | Espaço (segure para pular mais alto) | ⤒ |
+| Mover | A / D ou ← → | ◀ ▶ |
+| Pular | Espaço ou ↑ (segure para pular mais alto) | ⤒ |
 | Espada | F ou G (ou clique) | ⚔ |
 
 Dicas: os dinossauros avisam antes do bote (param e tremem com a boca aberta). Recue ou
-pule por cima e contra-ataque enquanto eles se recuperam. Frutas recuperam vida e cada
-área liberada devolve +15.
+pule por cima e contra-ataque enquanto eles se recuperam.
+
+**Vidas:** o herói começa com 3. Cada maçã (nas plataformas de pedra) vale **+1 vida**, até 9.
+Ao cair, perde uma vida e renasce na entrada da área onde estava, com energia cheia; os dinos
+dali voltam a patrulhar, mas continuam feridos. Sem vidas, é fim de jogo. Cada área liberada
+devolve +15 de energia.
 
 ## Rodar localmente
 
@@ -31,6 +35,7 @@ Adicione `?debug` na URL para ver as caixas de colisão.
 npm test                                  # regras (vida, dano, IA dos dinos, fase)
 npm run smoke                             # robô joga a fase inteira no Chromium headless
 node tests/smoke.mjs --strategy=spam      # robô que só ataca, sem desviar
+npm run features                          # setas, maçã = +1 vida, renascer após cair
 ```
 
 O smoke test falha se houver erro no console ou se o robô "smart" não chegar ao castelo.

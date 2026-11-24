@@ -5,6 +5,8 @@
 export const GROUND_Y = 470; // topo do chão (px)
 export const WORLD_WIDTH = 7600;
 export const CASTLE_GATE_X = 7180;
+export const START_LIVES = 3;
+export const MAX_LIVES = 9;
 
 export const LEVEL = {
   heroStartX: 140,
@@ -43,14 +45,14 @@ export const LEVEL = {
     { x: 6100, y: 365, w: 170 },
     { x: 6420, y: 360, w: 150 },
   ],
-  // Frutas que recuperam vida
+  // Maçãs: cada uma vale +1 vida
   pickups: [
-    { x: 640, y: 340, heal: 25 },
-    { x: 2020, y: 330, heal: 30 },
-    { x: 3340, y: 320, heal: 35 },
-    { x: 4725, y: 335, heal: 35 },
-    { x: 6185, y: 325, heal: 40 },
-    { x: 6495, y: 320, heal: 30 },
+    { x: 640, y: 340 },
+    { x: 2020, y: 330 },
+    { x: 3340, y: 320 },
+    { x: 4725, y: 335 },
+    { x: 6185, y: 325 },
+    { x: 6495, y: 320 },
   ],
 };
 
@@ -70,6 +72,7 @@ export function createRun(level = LEVEL) {
     cleared: new Set(), // ids de encontros vencidos
     alive: new Map(level.encounters.map((e) => [e.id, e.spawns.length])),
     active: null, // id do encontro em andamento (cercas fechadas)
+    lives: START_LIVES,
     startedAt: 0,
     finishedAt: 0,
     outcome: null, // 'victory' | 'defeat'
@@ -104,4 +107,25 @@ export function canEnterCastle(run, level = LEVEL) {
 
 export function progress(heroX) {
   return Math.max(0, Math.min(1, heroX / CASTLE_GATE_X));
+}
+
+/** Maçã coletada: +1 vida, até o máximo. Retorna true se ganhou. */
+export function gainLife(run) {
+  if (run.lives >= MAX_LIVES) return false;
+  run.lives += 1;
+  return true;
+}
+
+/** Herói caiu: perde uma vida. Retorna quantas restam (0 = fim de jogo). */
+export function loseLife(run) {
+  run.lives = Math.max(0, run.lives - 1);
+  return run.lives;
+}
+
+/** Onde o herói renasce: na entrada da arena em que caiu, que reabre e pode ser tentada de novo. */
+export function respawnPoint(run, heroX, level = LEVEL) {
+  const enc = level.encounters.find((e) => e.id === run.active);
+  if (!enc) return { x: heroX, encounterId: null };
+  run.active = null;
+  return { x: enc.x0 - 120, encounterId: enc.id };
 }
