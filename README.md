@@ -21,6 +21,13 @@ Ao cair, perde uma vida e renasce na entrada da área onde estava, com energia c
 dali voltam a patrulhar, mas continuam feridos. Sem vidas, é fim de jogo. Cada área liberada
 devolve +15 de energia.
 
+## Publicar no GitHub Pages
+
+O jogo é um site estático (sem build): `index.html`, `src/` e `vendor/` na raiz.
+Em **Settings → Pages**, escolha **Deploy from a branch**, branch `main`, pasta `/ (root)`.
+O endereço fica `https://<usuário>.github.io/<repositório>/`. O arquivo `.nojekyll`
+faz o GitHub servir os arquivos como estão.
+
 ## Rodar localmente
 
 ```bash
