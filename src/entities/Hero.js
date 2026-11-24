@@ -25,10 +25,11 @@ export default class Hero {
     this.attackReadyAt = 0;
     this.attack = null; // { startedAt, hitIds:Set }
     this.landed = true;
+    this.hurtUntil = 0;
 
-    this.sprite = scene.physics.add.sprite(x, y, 'hero-idle').setDepth(10);
+    this.sprite = scene.physics.add.sprite(x, y, 'hero', 'idle0').setDepth(10);
     this.sprite.setOrigin(0.5, 1);
-    this.sprite.body.setSize(20, 48).setOffset(14, 16);
+    this.sprite.body.setSize(22, 56).setOffset(19, 24);
     this.sprite.body.setMaxVelocityY(MOVE.maxFall);
     this.sprite.setCollideWorldBounds(true);
     this.sprite.play('hero-idle');
@@ -50,10 +51,10 @@ export default class Hero {
     if (!this.attack) return null;
     const t = now - this.attack.startedAt;
     if (t < HERO.attackWindupMs || t > HERO.attackWindupMs + HERO.attackActiveMs) return null;
-    const w = 78;
-    const h = 64;
-    const cx = this.sprite.x + this.facing * 42;
-    return new Phaser.Geom.Rectangle(cx - w / 2, this.sprite.y - 66, w, h);
+    const w = 84;
+    const h = 76;
+    const cx = this.sprite.x + this.facing * 46;
+    return new Phaser.Geom.Rectangle(cx - w / 2, this.sprite.y - 80, w, h);
   }
 
   update(input, now, dt) {
@@ -100,8 +101,9 @@ export default class Hero {
     if (this.attack && now - this.attack.startedAt > HERO.attackCooldownMs) this.attack = null;
 
     // animação
-    if (this.attack) s.anims.stop(), s.setTexture('hero-attack');
-    else if (!onGround) s.anims.stop(), s.setTexture('hero-jump');
+    if (now < this.hurtUntil) s.anims.stop(), s.setTexture('hero', 'hurt');
+    else if (this.attack) s.anims.stop(), s.setTexture('hero', 'attack');
+    else if (!onGround) s.anims.stop(), s.setTexture('hero', body.velocity.y < 0 ? 'jump' : 'fall');
     else if (Math.abs(body.velocity.x) > 30) s.anims.currentAnim?.key !== 'hero-run' && s.play('hero-run');
     else s.anims.currentAnim?.key !== 'hero-idle' && s.play('hero-idle');
     s.setFlipX(this.facing < 0);
@@ -122,14 +124,17 @@ export default class Hero {
     const s = this.sprite;
     const f = this.facing;
     let angle = -1.1; // em repouso: lâmina levantada à frente
-    let handX = 8;
-    let handY = -27;
+    let handX = 10;
+    let handY = -37;
+    const frame = s.frame.name;
+    if (frame === 'jump' || frame === 'fall') { handX = 12; handY = frame === 'jump' ? -45 : -41; }
+    else if (frame === 'hurt') { handX = 4; handY = -50; angle = -2; }
     if (this.attack) {
       const t = Math.min(1, (now - this.attack.startedAt) / (HERO.attackWindupMs + HERO.attackActiveMs));
       const eased = 1 - Math.pow(1 - t, 3);
       angle = -2.3 + eased * 3.4; // arco de trás/cima para frente/baixo
-      handX = 10;
-      handY = -45 + eased * 10;
+      handX = 14;
+      handY = -56 + eased * 12;
     }
     this.sword.setVisible(true).setAlpha(s.alpha);
     this.sword.setPosition(s.x + f * handX, s.y + handY);
@@ -138,7 +143,7 @@ export default class Hero {
     const active = this.swordHitbox(now);
     this.slash.setVisible(!!active);
     if (active) {
-      this.slash.setPosition(s.x + f * 30, s.y - 36).setScale(f * 0.8, 0.8).setAlpha(0.85);
+      this.slash.setPosition(s.x + f * 34, s.y - 44).setScale(f * 0.8, 0.8).setAlpha(0.9);
     }
   }
 
@@ -148,6 +153,7 @@ export default class Hero {
     const away = Math.sign(this.sprite.x - fromX) || -this.facing;
     this.sprite.body.setVelocity(away * HERO.knockback.x, HERO.knockback.y);
     this.attack = null;
+    this.hurtUntil = now + 260;
     if (r.died) this.die();
     return r;
   }
@@ -160,7 +166,7 @@ export default class Hero {
     const s = this.sprite;
     s.anims.stop();
     s.setTexture('hero-dead').setAlpha(1).setFlipX(this.facing < 0);
-    s.body.setSize(40, 20).setOffset(12, 12);
+    s.body.setSize(40, 20).setOffset(22, 14);
     s.body.setVelocityX(0);
     this.sword.setVisible(false);
     this.slash.setVisible(false);

@@ -8,9 +8,9 @@ Rei Rex para entrar no castelo. Se a vida zerar, ele cai e não chega.
 
 | Ação | Teclado | Celular/tablet |
 | :--- | :--- | :--- |
-| Mover | ← → ou A D | ◀ ▶ |
-| Pular | ↑, W ou Espaço (segure para pular mais alto) | ⤒ |
-| Espada | J, K, X, Z ou clique | ⚔ |
+| Mover | A (esquerda) e D (direita) | ◀ ▶ |
+| Pular | Espaço (segure para pular mais alto) | ⤒ |
+| Espada | F ou G (ou clique) | ⚔ |
 
 Dicas: os dinossauros avisam antes do bote (param e tremem com a boca aberta). Recue ou
 pule por cima e contra-ataque enquanto eles se recuperam. Frutas recuperam vida e cada
@@ -47,7 +47,7 @@ src/rules/              regras puras, sem Phaser (testadas com node --test)
   level.js              fase: arenas, plataformas, frutas, castelo
 src/entities/           Hero (pulo, espada) e Dino (física + cérebro)
 src/scenes/             Play, HUD (com controles de toque), Boot/Título/Fim
-src/art/textures.js     toda a arte, desenhada por código (sem imagens externas)
+src/art/textures.js     toda a arte, pintada com Canvas 2D no boot (sem imagens externas)
 tests/                  testes de regras e smoke test com robô
 ```
 

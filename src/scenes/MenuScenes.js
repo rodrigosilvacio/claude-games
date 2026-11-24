@@ -16,13 +16,15 @@ export class BootScene extends Phaser.Scene {
 
 function backdrop(scene) {
   scene.add.image(0, 0, 'sky').setOrigin(0);
+  scene.add.image(0, 0, 'rays').setOrigin(0).setBlendMode('ADD');
   scene.add.image(180, 110, 'cloud').setScale(0.8);
-  scene.add.image(760, 80, 'cloud').setScale(0.6);
+  scene.add.image(600, 70, 'cloud2').setScale(0.7);
   scene.add.tileSprite(0, 140, 960, 300, 'mountains').setOrigin(0);
   scene.add.image(720, 400, 'castleFar').setOrigin(0.5, 1).setScale(0.45);
   scene.add.tileSprite(0, 255, 960, 220, 'hills').setOrigin(0);
   scene.add.tileSprite(0, 245, 960, 260, 'forest').setOrigin(0);
   scene.add.tileSprite(0, 470, 960, 96, 'ground').setOrigin(0);
+  scene.add.image(0, 0, 'vignette').setOrigin(0).setDepth(100);
 }
 
 function startOnInput(scene, cb) {
@@ -47,10 +49,12 @@ export class TitleScene extends Phaser.Scene {
     backdrop(this);
     this.add.rectangle(0, 0, W, 540, 0x0d1b2a, 0.25).setOrigin(0);
 
-    const hero = this.add.sprite(250, 470, 'hero-idle').setOrigin(0.5, 1).setScale(2);
+    this.add.image(250, 474, 'shadow').setScale(1.4);
+    this.add.image(590, 474, 'shadow').setScale(2.6, 1.6);
+    const hero = this.add.sprite(250, 472, 'hero', 'idle0').setOrigin(0.5, 1).setScale(1.7);
     hero.play('hero-idle');
-    this.add.image(272, 416, 'sword').setOrigin(0.12, 0.5).setScale(2).setRotation(-1.1);
-    const rex = this.add.sprite(560, 470, 'rex-walk1').setOrigin(0.5, 1).setFlipX(true).setScale(0.9);
+    this.add.image(250 + 10 * 1.7, 472 - 37 * 1.7, 'sword').setOrigin(0.12, 0.5).setScale(1.7).setRotation(-1.1).setDepth(1);
+    const rex = this.add.sprite(600, 472, 'rex', 'walk0').setOrigin(0.5, 1).setFlipX(true).setScale(1.05);
     rex.play('rex-walk');
 
     this.add
@@ -65,7 +69,7 @@ export class TitleScene extends Phaser.Scene {
     const touch = this.sys.game.device.input.touch;
     const controls = touch
       ? 'Use os botões na tela:  ◀ ▶ mover   ⤒ pular   ⚔ atacar'
-      : '← → ou A D: mover     ↑ W ou Espaço: pular     J K X Z ou clique: espada';
+      : 'A / D: mover      Espaço: pular      F ou G: espada';
     this.add
       .text(W / 2, 196, controls, { fontFamily: FONT, fontSize: '16px', color: '#fff6dc', stroke: '#1d1d28', strokeThickness: 4 })
       .setOrigin(0.5);
@@ -99,7 +103,7 @@ export class EndScene extends Phaser.Scene {
 
     if (won) {
       this.add.image(W / 2, 470, 'castle').setOrigin(0.5, 1).setScale(0.55);
-      const hero = this.add.sprite(W / 2 - 180, 470, 'hero-idle').setOrigin(0.5, 1).setScale(1.6);
+      const hero = this.add.sprite(W / 2 - 180, 472, 'hero', 'idle0').setOrigin(0.5, 1).setScale(1.5);
       hero.play('hero-idle');
     } else {
       this.add.image(W / 2, 466, 'hero-dead').setOrigin(0.5, 1).setScale(1.8);

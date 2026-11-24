@@ -27,8 +27,8 @@ export const DINOS = {
     recoverMs: 650,
     knockbackTaken: 260,
     poise: 1, // golpes até atordoar
-    size: { w: 72, h: 48 },
-    body: { w: 52, h: 34, ox: 10, oy: 12 },
+    size: { w: 84, h: 56 },
+    body: { w: 56, h: 36, ox: 14, oy: 18 },
   },
   trike: {
     label: 'Tricerátopo',
@@ -44,8 +44,8 @@ export const DINOS = {
     recoverMs: 900,
     knockbackTaken: 110,
     poise: 2,
-    size: { w: 112, h: 66 },
-    body: { w: 90, h: 46, ox: 12, oy: 18 },
+    size: { w: 124, h: 74 },
+    body: { w: 96, h: 50, ox: 16, oy: 22 },
   },
   rex: {
     label: 'Rei Rex',
@@ -61,8 +61,8 @@ export const DINOS = {
     recoverMs: 820,
     knockbackTaken: 40,
     poise: Infinity, // chefe: nunca é interrompido
-    size: { w: 176, h: 132 },
-    body: { w: 116, h: 76, ox: 30, oy: 54 }, // baixo o bastante para pular por cima
+    size: { w: 190, h: 142 },
+    body: { w: 116, h: 76, ox: 37, oy: 64 }, // baixo o bastante para pular por cima
     boss: true,
   },
 };

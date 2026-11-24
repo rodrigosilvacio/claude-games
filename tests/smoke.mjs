@@ -81,7 +81,7 @@ while (Date.now() - t0 < 300_000) {
   const keys = [];
   let attack = false;
   if (!near) {
-    keys.push('ArrowRight');
+    keys.push('KeyD');
   } else {
     const dx = near.x - s.x;
     const dist = Math.abs(dx);
@@ -94,19 +94,19 @@ while (Date.now() - t0 < 300_000) {
     if (strategy === 'smart' && danger && dist < 330) {
       if (cornered) {
         // encurralado: espera o bote e pula por cima
-        if (near.state === 'lunge' && dist < 240) keys.push(dir > 0 ? 'ArrowRight' : 'ArrowLeft', 'ArrowUp');
+        if (near.state === 'lunge' && dist < 240) keys.push(dir > 0 ? 'KeyD' : 'KeyA', 'Space');
       } else {
-        keys.push(dir > 0 ? 'ArrowLeft' : 'ArrowRight'); // recua do bote
+        keys.push(dir > 0 ? 'KeyA' : 'KeyD'); // recua do bote
       }
     } else if (dist > reach) {
-      keys.push(dir > 0 ? 'ArrowRight' : 'ArrowLeft');
+      keys.push(dir > 0 ? 'KeyD' : 'KeyA');
     } else {
-      if (s.facing !== dir) keys.push(dir > 0 ? 'ArrowRight' : 'ArrowLeft');
+      if (s.facing !== dir) keys.push(dir > 0 ? 'KeyD' : 'KeyA');
       attack = true;
     }
   }
   await hold(keys);
-  if (attack) await page.keyboard.press('j');
+  if (attack) await page.keyboard.press('KeyF');
   await page.waitForTimeout(40);
 }
 await hold([]);

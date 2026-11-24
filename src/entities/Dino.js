@@ -17,7 +17,7 @@ export default class Dino {
     this.hitsTaken = 0;
 
     const { size, body } = this.stats;
-    this.sprite = scene.physics.add.sprite(x, groundY - size.h / 2, `${type}-walk1`).setDepth(9);
+    this.sprite = scene.physics.add.sprite(x, groundY - size.h / 2, type, 'walk0').setDepth(9);
     this.sprite.body.setSize(body.w, body.h).setOffset(body.ox, body.oy);
     this.sprite.setCollideWorldBounds(true);
     this.sprite.play(`${type}-walk`);
@@ -54,7 +54,7 @@ export default class Dino {
     const st = this.brain.state;
     if (st === 'windup' || st === 'lunge') {
       s.anims.stop();
-      s.setTexture(`${this.type}-windup`);
+      s.setTexture(this.type, 'windup');
       // tremidinha de aviso antes do bote
       s.setX(s.x + (st === 'windup' ? Math.sin(this.scene.time.now / 25) * 0.8 : 0));
     } else if (st === 'recover' || st === 'hurt') {

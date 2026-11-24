@@ -39,11 +39,17 @@ export default class PlayScene extends Phaser.Scene {
     this.buildWorld();
 
     this.hero = new Hero(this, LEVEL.heroStartX, GROUND_Y);
+    this.heroShadow = this.add.image(0, 0, 'shadow').setDepth(6);
+    this.lastGroundY = GROUND_Y;
     this.physics.add.collider(this.hero.sprite, this.solids);
     this.physics.add.collider(this.hero.sprite, this.fenceGroup);
 
     for (const enc of LEVEL.encounters) {
-      for (const sp of enc.spawns) this.dinos.push(new Dino(this, sp.type, sp.x, GROUND_Y, enc));
+      for (const sp of enc.spawns) {
+        const d = new Dino(this, sp.type, sp.x, GROUND_Y, enc);
+        d.shadow = this.add.image(sp.x, GROUND_Y + 2, 'shadow').setDepth(6).setScale(d.stats.body.w / 50, 1.3);
+        this.dinos.push(d);
+      }
     }
     const dinoSprites = this.dinos.map((d) => d.sprite);
     this.physics.add.collider(dinoSprites, this.solids);
@@ -68,10 +74,24 @@ export default class PlayScene extends Phaser.Scene {
 
   buildBackdrop(W) {
     this.add.image(0, 0, 'sky').setOrigin(0).setScrollFactor(0).setDepth(-10);
+    this.rays = this.add.image(0, 0, 'rays').setOrigin(0).setScrollFactor(0).setDepth(-4).setBlendMode('ADD');
+    this.tweens.add({ targets: this.rays, alpha: 0.45, yoyo: true, repeat: -1, duration: 4200, ease: 'Sine.inOut' });
+    this.add.image(0, 0, 'vignette').setOrigin(0).setScrollFactor(0).setDepth(60);
+    this.add.particles(0, 0, 'mote', {
+      x: { min: 0, max: W },
+      y: { min: 120, max: 460 },
+      lifespan: 6000,
+      speedX: { min: -14, max: 14 },
+      speedY: { min: -18, max: -4 },
+      scale: { min: 0.4, max: 1 },
+      alpha: { start: 0.9, end: 0 },
+      frequency: 260,
+      blendMode: 'ADD',
+    }).setScrollFactor(0).setDepth(50);
     this.clouds = [];
     for (let i = 0; i < 5; i++) {
       const c = this.add
-        .image(i * 260 + 60, 50 + (i % 3) * 38, 'cloud')
+        .image(i * 260 + 60, 50 + (i % 3) * 38, i % 2 ? 'cloud2' : 'cloud')
         .setScrollFactor(0)
         .setScale(0.6 + (i % 2) * 0.3)
         .setAlpha(0.95)
@@ -125,10 +145,8 @@ export default class PlayScene extends Phaser.Scene {
 
   setupInput() {
     const K = Phaser.Input.Keyboard.KeyCodes;
-    this.keys = this.input.keyboard.addKeys({
-      left: K.LEFT, right: K.RIGHT, up: K.UP, a: K.A, d: K.D, w: K.W, space: K.SPACE,
-      j: K.J, k: K.K, x: K.X, z: K.Z,
-    });
+    // Mão esquerda na fileira ASDFG: A/D movem, Espaço pula, F ou G atacam.
+    this.keys = this.input.keyboard.addKeys({ a: K.A, d: K.D, space: K.SPACE, f: K.F, g: K.G });
     this.mouseAttack = false;
     if (!this.sys.game.device.input.touch) {
       this.input.on('pointerdown', (p) => { if (p.leftButtonDown()) this.mouseAttack = true; });
@@ -139,12 +157,12 @@ export default class PlayScene extends Phaser.Scene {
     const k = this.keys;
     const t = this.registry.get('touch') ?? {};
     const JD = Phaser.Input.Keyboard.JustDown;
-    const jumpHeld = k.up.isDown || k.w.isDown || k.space.isDown || !!t.jump;
-    const jumpKeyDown = JD(k.up) | JD(k.w) | JD(k.space);
-    const attackKeyDown = JD(k.j) | JD(k.k) | JD(k.x) | JD(k.z);
+    const jumpHeld = k.space.isDown || !!t.jump;
+    const jumpKeyDown = JD(k.space);
+    const attackKeyDown = JD(k.f) | JD(k.g);
     const input = {
-      left: k.left.isDown || k.a.isDown || !!t.left,
-      right: k.right.isDown || k.d.isDown || !!t.right,
+      left: k.a.isDown || !!t.left,
+      right: k.d.isDown || !!t.right,
       jumpHeld,
       jumpPressed: !!jumpKeyDown || (!!t.jump && !this.prevJumpHeld),
       jumpReleased: !jumpHeld && this.prevJumpHeld,
@@ -360,7 +378,17 @@ export default class PlayScene extends Phaser.Scene {
     if (!this.ended || !this.hero.alive) this.hero.update(input, time, dt);
     else this.hero.placeSword(time);
 
-    for (const d of this.dinos) d.update(this.hero.x, this.hero.alive, this.run.active, delta);
+    for (const d of this.dinos) {
+      d.update(this.hero.x, this.hero.alive, this.run.active, delta);
+      if (d.shadow) {
+        if (d.sprite.active && d.alive) d.shadow.setPosition(d.sprite.x, GROUND_Y + 2);
+        else d.shadow.setAlpha(d.sprite.active ? d.sprite.alpha : 0);
+      }
+    }
+    const hs = this.hero.sprite;
+    if (hs.body.blocked.down) this.lastGroundY = hs.body.bottom;
+    const air = Math.min(1, Math.max(0, (this.lastGroundY - hs.body.bottom) / 140));
+    this.heroShadow.setPosition(hs.x, this.lastGroundY + 1).setScale(0.75 - air * 0.35, 1).setAlpha((1 - air * 0.6) * hs.alpha);
     if (this.ended) return;
 
     this.checkEncounters();
