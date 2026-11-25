@@ -17,7 +17,7 @@ let nextId = 10_000;
 const R = (x, y, w, h) => new Phaser.Geom.Rectangle(x, y, w, h);
 
 /** Base comum: vida, barra de vida, piscar ao levar golpe, morte. */
-class Enemy {
+export class Enemy {
   constructor(scene, type, encounter) {
     this.id = nextId++;
     this.scene = scene;
@@ -331,6 +331,8 @@ export function spawnProjectile(scene, key, x, y, tx, ty, flightMs, opts) {
     sprite: p,
     damage: opts.damage,
     destroyable: opts.destroyable,
+    reflectable: !!opts.reflectable,
+    fromAbove: !!opts.fromAbove,
     dead: false,
     born: scene.time.now,
     box: () => R(p.body.x, p.body.y, p.body.width, p.body.height),

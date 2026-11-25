@@ -208,7 +208,7 @@ function cloud(scene, key, seed, w, h) {
 
 // ------------------------------------------------------------------ montanhas e lago
 
-function peak(ctx, x, top, half, base, body, shadow, snowDepth, seed) {
+export function peak(ctx, x, top, half, base, body, shadow, snowDepth, seed) {
   const r = rng(seed);
   const left = [];
   const right = [];
@@ -1129,19 +1129,21 @@ export function eye(ctx, x, y, r, iris = '#ffd23f') {
   ctx.fill();
 }
 
-function drawRaptor(ctx, f) {
+export const RAPTOR_GREEN = { body: ['#7cc35a', '#4f9a3a', '#2f6b2a'], limb: '#3f7f30', belly: '#d7ea9e', jaw: '#3f8a30', stripe: 'rgba(40,85,30,0.85)', crest: '#c8452b' };
+
+export function drawRaptor(ctx, f, pal = RAPTOR_GREEN) {
   const { ph = 0, windup = false } = f;
   const sway = Math.sin(ph) * 2;
   const bob = windup ? 3 : -Math.abs(Math.cos(ph)) * 1.5;
-  const body = ['#7cc35a', '#4f9a3a', '#2f6b2a'];
+  const body = pal.body;
   const legA = (q) => [0.55 * Math.sin(q), 0.55 * Math.sin(q) - 0.6 - 0.5 * Math.max(0, Math.cos(q))];
 
   // perna de trás
   const lb = legA(ph + Math.PI);
   const backLeg = legPoints(40, 32 + bob, lb[0], lb[1], 11, 12);
-  limb(ctx, backLeg.slice(0, 2), 8, '#3f7f30');
-  limb(ctx, backLeg.slice(1), 4.5, '#3f7f30');
-  limb(ctx, [backLeg[2], [backLeg[2][0] + 7, backLeg[2][1] + 1]], 3.5, '#3f7f30');
+  limb(ctx, backLeg.slice(0, 2), 8, pal.limb);
+  limb(ctx, backLeg.slice(1), 4.5, pal.limb);
+  limb(ctx, [backLeg[2], [backLeg[2][0] + 7, backLeg[2][1] + 1]], 3.5, pal.limb);
 
   // cauda
   ctx.beginPath();
@@ -1155,9 +1157,9 @@ function drawRaptor(ctx, f) {
   ellipse(ctx, 44, 30 + bob, 17, 10.5, -0.15);
   paint(ctx, lin(ctx, 0, 19 + bob, 0, 41 + bob, [[0, body[0]], [0.5, body[1]], [1, body[2]]]));
   ellipse(ctx, 46, 35 + bob, 11, 4.5, -0.1);
-  ctx.fillStyle = '#d7ea9e';
+  ctx.fillStyle = pal.belly;
   ctx.fill();
-  stripes(ctx, [[36, 21 + bob, 7], [42, 20 + bob, 8], [48, 21 + bob, 7]], 'rgba(40,85,30,0.85)');
+  stripes(ctx, [[36, 21 + bob, 7], [42, 20 + bob, 8], [48, 21 + bob, 7]], pal.stripe);
 
   // pescoço e cabeça
   const hy = windup ? 21 : 12 + bob;
@@ -1174,7 +1176,7 @@ function drawRaptor(ctx, f) {
   ctx.quadraticCurveTo(19, 9, 14, 9);
   ctx.lineTo(0, 9);
   ctx.closePath();
-  paint(ctx, '#3f8a30');
+  paint(ctx, pal.jaw);
   if (windup) {
     ctx.fillStyle = '#ffffff';
     for (let x = 4; x < 17; x += 4) {
@@ -1216,7 +1218,7 @@ function drawRaptor(ctx, f) {
   }
   eye(ctx, 8, -1, 2.8);
   // crista
-  ctx.strokeStyle = '#c8452b';
+  ctx.strokeStyle = pal.crest;
   ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.moveTo(-1, -4);
@@ -1228,7 +1230,7 @@ function drawRaptor(ctx, f) {
   ctx.restore();
 
   // braço com garras
-  limb(ctx, [[53, 31 + bob], [57, 36 + bob], [61, 35 + bob]], 3.5, '#3f7f30');
+  limb(ctx, [[53, 31 + bob], [57, 36 + bob], [61, 35 + bob]], 3.5, pal.limb);
 
   // perna da frente
   const lf = legA(ph);

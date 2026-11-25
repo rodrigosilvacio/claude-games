@@ -169,8 +169,109 @@ export const LEVEL_2 = {
   ],
 };
 
-export const LEVELS = { 1: LEVEL, 2: LEVEL_2 };
-export const LAST_PHASE = 2;
+// ------------------------------------------------------------------ Fase 3
+// Picos de Cristal: neve ao amanhecer. Habilidade nova: o escudo (tecla S), encontrado
+// num baú logo no começo. Plataformas móveis atravessam buracos de neve fofa: quem cai
+// perde um pouco de energia e volta para a borda, sem perder vida (justo para crianças).
+// Fase final: ao vencer a Serpente de Cristal, a princesa sai do Castelo Dourado.
+
+export const FALL_DAMAGE = 10;
+
+export const LEVEL_3 = {
+  id: 3,
+  name: 'Picos de Cristal',
+  theme: 'ice',
+  worldWidth: 9300,
+  castleGateX: 8800,
+  heroStartX: 140,
+  boss: { name: 'Serpente de Cristal', intro: 'A Serpente de Cristal protege o lago!' },
+  enemyWord: 'monstros',
+  chest: { x: 480 }, // escudo
+  finale: { message: 'Parabéns, você é demais!!' },
+  encounters: [
+    { id: 'trilha-nevada', name: 'Trilha nevada', x0: 800, x1: 1600, spawns: [{ type: 'yeti', x: 1300 }] },
+    { id: 'cachoeira', name: 'Cachoeira congelada', x0: 2000, x1: 2800, spawns: [{ type: 'penguin', x: 2550 }] },
+    {
+      id: 'ponte',
+      name: 'Ponte de gelo',
+      x0: 3900,
+      x1: 4950,
+      spawns: [
+        { type: 'ptero', x: 4200 },
+        { type: 'yeti', x: 4780 },
+      ],
+    },
+    {
+      id: 'caverna',
+      name: 'Caverna de cristal',
+      x0: 5300,
+      x1: 6400,
+      spawns: [
+        { type: 'raptorSnow', x: 5650 },
+        { type: 'ptero', x: 5850 },
+        { type: 'penguin', x: 6050 },
+        { type: 'yeti', x: 6280 },
+      ],
+    },
+    {
+      id: 'lago',
+      name: 'Lago congelado',
+      x0: 7050,
+      x1: 8550,
+      spawns: [{ type: 'serpent', x: 7800 }],
+      holes: [7350, 7800, 8250],
+      boss: true,
+    },
+  ],
+  // buracos de neve fofa, cada um com uma plataforma de gelo que vai e volta devagar
+  gaps: [
+    { x0: 3450, x1: 3690, platform: { w: 110, speed: 70 } }, // ensina, sem inimigos
+    { x0: 4300, x1: 4540, platform: { w: 110, speed: 70 } }, // dentro da Ponte de gelo
+  ],
+  ledges: [
+    { x: 600, y: 380, w: 150 },
+    { x: 2950, y: 370, w: 150 }, // gruta das frutas (descanso)
+    { x: 3150, y: 360, w: 140 },
+    { x: 6500, y: 370, w: 150 }, // mirante (descanso antes do chefe)
+    { x: 6720, y: 360, w: 140 },
+    { x: 7500, y: 360, w: 140 }, // refúgios no lago: o bote da Serpente passa por baixo
+    { x: 8030, y: 360, w: 140 },
+  ],
+  pickups: [
+    { x: 675, y: 340 },
+    { x: 3025, y: 330 },
+    { x: 3220, y: 320 },
+    { x: 6575, y: 330 },
+    { x: 6790, y: 320 },
+    { x: 6930, y: 440 },
+    // reforço para o chefe
+    { x: 7120, y: 440 },
+    { x: 7570, y: 320 },
+    { x: 8100, y: 320 },
+  ],
+  beats: [
+    { room: 'trilha-nevada', type: 'teach', intensity: 0.2 }, // escudo contra bolas de neve
+    { room: 'cachoeira', type: 'teach', intensity: 0.4 }, // pular o pinguim
+    { room: 'gruta-das-frutas', type: 'rest', intensity: 0.1 },
+    { room: 'ponte', type: 'combat', intensity: 0.6 },
+    { room: 'caverna', type: 'combat', intensity: 0.75 },
+    { room: 'mirante', type: 'rest', intensity: 0.15 },
+    { room: 'lago', type: 'climax', intensity: 1 },
+  ],
+};
+
+export const LEVELS = { 1: LEVEL, 2: LEVEL_2, 3: LEVEL_3 };
+export const LAST_PHASE = 3;
+
+/** Buraco de neve que contém x, ou null. */
+export function gapAt(x, level) {
+  return (level.gaps ?? []).find((g) => x > g.x0 && x < g.x1) ?? null;
+}
+
+/** Onde o herói volta depois de cair na neve fofa: a borda por onde entrou. */
+export function fallReturnX(gap, lastSafeX) {
+  return lastSafeX >= gap.x1 ? gap.x1 + 40 : gap.x0 - 40;
+}
 
 // Compatibilidade com a Fase 1
 export const WORLD_WIDTH = LEVEL.worldWidth;

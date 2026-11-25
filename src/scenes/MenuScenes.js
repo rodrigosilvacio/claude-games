@@ -1,19 +1,22 @@
 import { buildTextures, buildAnimations } from '../art/textures.js';
 import { buildNightTextures, buildNightAnimations } from '../art/night.js';
+import { buildIceTextures, buildIceAnimations } from '../art/ice.js';
 import { LAST_PHASE, LEVELS, livesForNextPhase } from '../rules/level.js';
 
-// Fase 2 liberada fica guardada só neste navegador (conveniência; o jogo funciona sem).
-const UNLOCK_KEY = 'pepe.fase2';
-const isUnlocked = () => {
+// Maior fase liberada fica guardada só neste navegador (conveniência; o jogo funciona sem).
+const UNLOCK_KEY = 'pepe.fase';
+const unlockedPhase = () => {
   try {
-    return localStorage.getItem(UNLOCK_KEY) === '1';
+    const n = Number(localStorage.getItem(UNLOCK_KEY));
+    if (n >= 2) return n;
+    return localStorage.getItem('pepe.fase2') === '1' ? 2 : 1; // versão anterior
   } catch {
-    return false;
+    return 1;
   }
 };
-const unlock = () => {
+const unlock = (phase) => {
   try {
-    localStorage.setItem(UNLOCK_KEY, '1');
+    if (phase > unlockedPhase()) localStorage.setItem(UNLOCK_KEY, String(phase));
   } catch {
     /* sem armazenamento: ok */
   }
@@ -31,11 +34,23 @@ export class BootScene extends Phaser.Scene {
     buildAnimations(this);
     buildNightTextures(this);
     buildNightAnimations(this);
+    buildIceTextures(this);
+    buildIceAnimations(this);
     this.scene.start('title');
   }
 }
 
 function backdrop(scene, theme = 'day') {
+  if (theme === 'ice') {
+    scene.add.image(0, 0, 'sky3').setOrigin(0);
+    scene.add.tileSprite(0, 120, 960, 300, 'far3').setOrigin(0);
+    scene.add.image(720, 300, 'castleFar3').setOrigin(0.5, 1).setScale(0.4);
+    scene.add.tileSprite(0, 250, 960, 220, 'mid3').setOrigin(0);
+    scene.add.tileSprite(0, 245, 960, 260, 'forest3').setOrigin(0);
+    scene.add.tileSprite(0, 470, 960, 96, 'ground3').setOrigin(0);
+    scene.add.image(0, 0, 'vignette').setOrigin(0).setDepth(100);
+    return;
+  }
   if (theme === 'night') {
     scene.add.image(0, 0, 'sky2').setOrigin(0);
     scene.add.tileSprite(0, 130, 960, 300, 'far2').setOrigin(0);
@@ -93,7 +108,7 @@ export class TitleScene extends Phaser.Scene {
       .text(W / 2, 92, 'O MUNDO DO PEPE', { fontFamily: FONT, fontSize: '58px', fontStyle: 'bold', color: '#fff6dc', stroke: '#2a1a10', strokeThickness: 10 })
       .setOrigin(0.5);
     this.add
-      .text(W / 2, 150, 'Atravesse a floresta, vença os dinossauros e chegue ao castelo.', {
+      .text(W / 2, 150, 'Atravesse florestas e montanhas, vença os monstros e encontre a princesa.', {
         fontFamily: FONT, fontSize: '19px', color: '#ffffff', stroke: '#1d1d28', strokeThickness: 5,
       })
       .setOrigin(0.5);
@@ -113,12 +128,17 @@ export class TitleScene extends Phaser.Scene {
       .setOrigin(0.5);
     this.tweens.add({ targets: cta, scale: 1.08, yoyo: true, repeat: -1, duration: 650, ease: 'Sine.inOut' });
 
-    if (location.hash === '#fase2') unlock(); // link direto para testar a Fase 2
-    if (isUnlocked() && !touch) {
+    // links diretos para testar: #fase2, #fase3
+    const m = /^#fase([23])$/.exec(location.hash);
+    if (m) unlock(Number(m[1]));
+    const max = unlockedPhase();
+    if (max >= 2 && !touch) {
+      const keys = max >= 3 ? '2 ou 3' : '2';
       this.add
-        .text(W / 2, 290, 'Tecla 2: ir direto para a Fase 2', { fontFamily: FONT, fontSize: '17px', color: '#c8e0ff', stroke: '#1d1d28', strokeThickness: 4 })
+        .text(W / 2, 290, `Tecla ${keys}: ir direto para a fase`, { fontFamily: FONT, fontSize: '17px', color: '#c8e0ff', stroke: '#1d1d28', strokeThickness: 4 })
         .setOrigin(0.5);
       this.input.keyboard.once('keydown-TWO', () => this.scene.start('play', { phase: 2 }));
+      if (max >= 3) this.input.keyboard.once('keydown-THREE', () => this.scene.start('play', { phase: 3 }));
     }
     startOnInput(this, () => this.scene.start('play', { phase: 1 }));
   }
@@ -139,22 +159,27 @@ export class EndScene extends Phaser.Scene {
     const won = outcome === 'victory';
     const next = won && phase < LAST_PHASE ? phase + 1 : null;
     const finalWin = won && !next;
-    const night = LEVELS[phase]?.theme === 'night';
-    backdrop(this, night ? 'night' : 'day');
-    this.add.rectangle(0, 0, W, 540, won ? 0x1a2a10 : 0x2a0d10, won ? 0.3 : 0.55).setOrigin(0);
-    if (won && phase === 1) unlock();
+    const theme = LEVELS[phase]?.theme ?? 'day';
+    backdrop(this, theme);
+    this.add.rectangle(0, 0, W, 540, won ? 0x1a2a10 : 0x2a0d10, won ? 0.25 : 0.55).setOrigin(0);
+    if (won && next) unlock(next);
 
     if (won) {
-      this.add.image(W / 2, 470, night ? 'castle2' : 'castle').setOrigin(0.5, 1).setScale(0.55);
+      const castle = { day: 'castle', night: 'castle2', ice: 'castle3' }[theme];
+      this.add.image(W / 2, 470, castle).setOrigin(0.5, 1).setScale(0.55);
       const hero = this.add.sprite(W / 2 - 180, 472, 'hero', 'idle0').setOrigin(0.5, 1).setScale(1.5);
       hero.play('hero-idle');
+      if (finalWin) {
+        const p = this.add.sprite(W / 2 - 110, 472, 'princess', 'idle').setOrigin(0.5, 1).setScale(1.5).setFlipX(true);
+        p.play('princess-wave');
+      }
     } else {
       this.add.image(W / 2, 466, 'hero-dead').setOrigin(0.5, 1).setScale(1.8);
     }
 
-    const title = finalWin ? 'VITÓRIA!' : won ? `FASE ${phase} CONCLUÍDA!` : 'FIM DE JOGO';
+    const title = finalWin ? 'PARABÉNS!' : won ? `FASE ${phase} CONCLUÍDA!` : 'FIM DE JOGO';
     const line = finalWin
-      ? 'O Pepe venceu o Colosso de Magma e chegou ao Castelo Azul!'
+      ? 'O Pepe encontrou a princesa no Castelo Dourado. Você é demais!!'
       : won
         ? `O Pepe chegou ao castelo... mas a jornada continua: ${LEVELS[next].name}.`
         : `Os ${LEVELS[phase].enemyWord} venceram desta vez. O castelo ainda espera.`;
