@@ -139,7 +139,7 @@ const end = await page.evaluate(() => {
 
 if (!real) {
   check('robô derrota todos os inimigos e entra no Castelo Azul', end.result?.outcome === 'victory' && end.result?.phase === 2, JSON.stringify(end.result));
-  check('é a vitória final (sem fase seguinte)', end.label === 'Enter: jogar de novo', end.label);
+  check('vencer a Fase 2 leva à Fase 3', /Fase 3/.test(end.label ?? ''), end.label);
   for (const k of ['spore', 'lavabolt', 'shockwave', 'fire']) check(`perigo apareceu: ${k}`, seenHazards.has(k));
   for (const k of ['stomp', 'bolts']) check(`Colosso usou: ${k}`, seenAttacks.has(k));
   check('Colosso ficou furioso na metade da vida', enraged);

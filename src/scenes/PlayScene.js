@@ -1,7 +1,8 @@
 import Hero, { MOVE } from '../entities/Hero.js';
 import Dino from '../entities/Dino.js';
 import { Bat, Plant, Kaiju } from '../entities/Monsters.js';
-import { HERO } from '../rules/combat.js';
+import { Yeti, Penguin, Ptero, Serpent } from '../entities/IceMonsters.js';
+import { HERO, shieldBlocks, applyDamage } from '../rules/combat.js';
 import {
   LEVELS,
   GROUND_Y,
@@ -14,6 +15,9 @@ import {
   gainLife,
   loseLife,
   respawnPoint,
+  gapAt,
+  fallReturnX,
+  FALL_DAMAGE,
 } from '../rules/level.js';
 
 // Visual de cada fase. As texturas vêm de src/art/textures.js (dia) e src/art/night.js (noite).
@@ -56,12 +60,38 @@ const THEMES = {
     motes: { tint: [0xd8ff80, 0xa8f0ff, 0xfff0a0], y: [200, 460] }, // vaga-lumes
     shade: { color: 0x101438, alpha: 0.2 },
   },
+  ice: {
+    sky: 'sky3',
+    rays: false,
+    clouds: false,
+    mist: true,
+    mistKey: 'mist3',
+    layers: [
+      { key: 'far3', y: 120, h: 300, f: 0.08, depth: -8 },
+      { key: 'mid3', y: 250, h: 220, f: 0.22, depth: -6 },
+      { key: 'forest3', y: GROUND_Y - 225, h: 260, f: 0.5, depth: -5 },
+    ],
+    castleFar: { key: 'castleFar3', y: 300, scale: 0.26 },
+    castle: 'castle3',
+    tree: 'tree3',
+    bush: 'crystals',
+    ground: 'ground3',
+    ledge: 'ledge3',
+    fruit: 'berry',
+    motes: { tint: [0xffffff], y: [0, 470] }, // flocos de neve
+    snowfall: true,
+    shade: null,
+  },
 };
 
 function createEnemy(scene, type, x, enc) {
   if (type === 'bat') return new Bat(scene, x, enc);
   if (type === 'plant') return new Plant(scene, x, enc);
   if (type === 'kaiju') return new Kaiju(scene, x, enc);
+  if (type === 'yeti') return new Yeti(scene, x, enc);
+  if (type === 'penguin') return new Penguin(scene, x, enc);
+  if (type === 'ptero') return new Ptero(scene, x, enc);
+  if (type === 'serpent') return new Serpent(scene, x, enc);
   return new Dino(scene, type, x, GROUND_Y, enc);
 }
 
@@ -82,6 +112,12 @@ export default class PlayScene extends Phaser.Scene {
     this.hitStopUntil = 0;
     this.ended = false;
     this.prevJumpHeld = false;
+    this.movers = [];
+    this.lastSafeX = 0;
+    this.finale = null;
+    this.finished = false;
+    this.counters = { blocked: 0, reflected: 0, reflectHits: 0, falls: 0 }; // para os testes
+    this.chest = null;
   }
 
   // nome antigo, usado pelos testes de navegador
@@ -109,15 +145,21 @@ export default class PlayScene extends Phaser.Scene {
       for (const sp of enc.spawns) {
         const e = createEnemy(this, sp.type, sp.x, enc);
         e.shadow = this.add.image(sp.x, GROUND_Y + 2, 'shadow').setDepth(6).setScale(e.stats.body.w / 50, 1.3);
-        if (sp.type === 'bat') e.shadow.setAlpha(0.45);
+        if (sp.type === 'bat' || sp.type === 'ptero') e.shadow.setAlpha(0.45);
+        if (sp.type === 'serpent') e.shadow.setVisible(false);
         this.enemies.push(e);
       }
     }
-    const walkers = this.enemies.filter((e) => e instanceof Dino).map((e) => e.sprite);
+    const walkers = this.enemies.filter((e) => e instanceof Dino || e.walker).map((e) => e.sprite);
     this.physics.add.collider(walkers, this.solids);
     this.physics.add.collider(walkers, this.fenceGroup);
     const boss = this.enemies.find((e) => e instanceof Kaiju);
     if (boss) this.physics.add.collider(boss.sprite, this.fenceGroup);
+    const serpent = this.enemies.find((e) => e instanceof Serpent);
+    if (serpent) this.physics.add.collider(serpent.sprite, this.fenceGroup);
+    for (const m of this.movers) this.physics.add.collider(this.hero.sprite, m);
+    if (this.chest) this.physics.add.overlap(this.hero.sprite, this.chest, () => this.openChest());
+    this.lastSafeX = L.heroStartX;
 
     this.physics.add.overlap(this.hero.sprite, this.pickups, (_h, fruit) => this.collectFruit(fruit));
 
@@ -151,11 +193,11 @@ export default class PlayScene extends Phaser.Scene {
       y: { min: T.motes.y[0], max: T.motes.y[1] },
       lifespan: 6000,
       speedX: { min: -14, max: 14 },
-      speedY: { min: -18, max: -4 },
+      speedY: T.snowfall ? { min: 20, max: 60 } : { min: -18, max: -4 }, // neve cai, vaga-lume sobe
       scale: { min: 0.4, max: 1 },
       alpha: { start: 0.9, end: 0 },
       tint: T.motes.tint,
-      frequency: T.mist ? 160 : 260,
+      frequency: T.snowfall ? 60 : T.mist ? 160 : 260,
       blendMode: 'ADD',
     }).setScrollFactor(0).setDepth(50);
 
@@ -181,8 +223,9 @@ export default class PlayScene extends Phaser.Scene {
     const cf = T.castleFar;
     this.add.image(880, cf.y, cf.key).setOrigin(0.5, 1).setScale(cf.scale).setScrollFactor(0.025).setDepth(-7);
     if (T.mist) {
-      this.mist = this.add.tileSprite(0, GROUND_Y - 140, W, 160, 'mist').setOrigin(0).setScrollFactor(0).setDepth(-3);
-      this.mistFront = this.add.tileSprite(0, GROUND_Y - 70, W, 160, 'mist').setOrigin(0).setScrollFactor(0).setDepth(52).setAlpha(0.22);
+      const mk = T.mistKey ?? 'mist';
+      this.mist = this.add.tileSprite(0, GROUND_Y - 140, W, 160, mk).setOrigin(0).setScrollFactor(0).setDepth(-3);
+      this.mistFront = this.add.tileSprite(0, GROUND_Y - 70, W, 160, mk).setOrigin(0).setScrollFactor(0).setDepth(52).setAlpha(0.22);
     }
 
     // árvores e arbustos na mesma camada do herói (fundo próximo)
@@ -201,9 +244,33 @@ export default class PlayScene extends Phaser.Scene {
     const T = this.theme;
     const L = this.level;
     this.solids = this.physics.add.staticGroup();
-    const ground = this.add.tileSprite(0, GROUND_Y, L.worldWidth, 96, T.ground).setOrigin(0).setDepth(5);
-    this.physics.add.existing(ground, true);
-    this.solids.add(ground);
+    // chão em pedaços: os buracos de neve fofa ficam entre eles
+    const gaps = [...(L.gaps ?? [])].sort((a, b) => a.x0 - b.x0);
+    const cuts = [0, ...gaps.flatMap((g) => [g.x0, g.x1]), L.worldWidth];
+    for (let k = 0; k < cuts.length; k += 2) {
+      const [x0, x1] = [cuts[k], cuts[k + 1]];
+      const ground = this.add.tileSprite(x0, GROUND_Y, x1 - x0, 96, T.ground).setOrigin(0).setDepth(5);
+      ground.tilePositionX = x0;
+      this.physics.add.existing(ground, true);
+      this.solids.add(ground);
+    }
+    for (const g of gaps) {
+      this.add.tileSprite(g.x0, GROUND_Y + 40, g.x1 - g.x0, 90, 'snowpit').setOrigin(0).setDepth(5);
+      const p = g.platform;
+      const plat = this.physics.add.image(g.x0 + p.w / 2, GROUND_Y + 13, 'iceplat').setDepth(6);
+      plat.body.setAllowGravity(false).setImmovable(true);
+      plat.body.setSize(p.w, 22).setOffset(0, 2);
+      plat.body.setVelocityX(p.speed);
+      plat.minX = g.x0 + p.w / 2;
+      plat.maxX = g.x1 - p.w / 2;
+      plat.speed = p.speed;
+      this.movers.push(plat);
+    }
+    if (L.chest) {
+      this.chest = this.physics.add.staticSprite(L.chest.x, GROUND_Y - 22, 'chest', 'closed').setDepth(8);
+      this.chestArrow = this.add.text(L.chest.x, GROUND_Y - 80, '▼', { fontSize: '26px', color: '#ffe07a', stroke: '#1d1d28', strokeThickness: 5 }).setOrigin(0.5).setDepth(40);
+      this.tweens.add({ targets: this.chestArrow, y: GROUND_Y - 68, yoyo: true, repeat: -1, duration: 450, ease: 'Sine.inOut' });
+    }
 
     for (const l of L.ledges) {
       const ledge = this.add.tileSprite(l.x, l.y, l.w, 34, T.ledge).setOrigin(0).setDepth(4);
@@ -215,7 +282,7 @@ export default class PlayScene extends Phaser.Scene {
 
     this.pickups = this.physics.add.staticGroup();
     for (const p of L.pickups) {
-      const f = this.pickups.create(p.x, p.y, 'fruit').setDepth(8);
+      const f = this.pickups.create(p.x, p.y, T.fruit ?? 'fruit').setDepth(8);
       this.tweens.add({ targets: f, y: p.y - 6, yoyo: true, repeat: -1, duration: 700, ease: 'Sine.inOut' });
     }
 
@@ -229,7 +296,7 @@ export default class PlayScene extends Phaser.Scene {
     const K = Phaser.Input.Keyboard.KeyCodes;
     // Mão esquerda na fileira ASDFG (A/D movem, Espaço pula, F ou G atacam) ou setas (← → movem, ↑ pula).
     this.keys = this.input.keyboard.addKeys({
-      a: K.A, d: K.D, space: K.SPACE, f: K.F, g: K.G, left: K.LEFT, right: K.RIGHT, up: K.UP,
+      a: K.A, d: K.D, s: K.S, space: K.SPACE, f: K.F, g: K.G, left: K.LEFT, right: K.RIGHT, up: K.UP, down: K.DOWN,
     });
     this.mouseAttack = false;
     if (!this.sys.game.device.input.touch) {
@@ -251,6 +318,7 @@ export default class PlayScene extends Phaser.Scene {
       jumpPressed: !!jumpKeyDown || (!!t.jump && !this.prevJumpHeld),
       jumpReleased: !jumpHeld && this.prevJumpHeld,
       attackPressed: !!attackKeyDown || this.mouseAttack || !!t.attackPressed,
+      shield: k.s.isDown || k.down.isDown || !!t.shield, // S (ou ↓) segura o escudo
     };
     this.prevJumpHeld = jumpHeld;
     this.mouseAttack = false;
@@ -295,6 +363,32 @@ export default class PlayScene extends Phaser.Scene {
       emitting: false,
     }).setDepth(30);
 
+    this.snow = this.add.particles(0, 0, 'mote', {
+      speedX: { min: -120, max: 120 },
+      speedY: { min: -220, max: -40 },
+      gravityY: 500,
+      lifespan: 700,
+      scale: { start: 1.2, end: 0.2 },
+      emitting: false,
+    }).setDepth(30);
+    this.shardBurst = this.add.particles(0, 0, 'shard', {
+      speed: { min: 120, max: 380 },
+      rotate: { min: 0, max: 360 },
+      lifespan: 900,
+      gravityY: 500,
+      scale: { start: 0.8, end: 0.2 },
+      emitting: false,
+    }).setDepth(30);
+    this.confetti = this.add.particles(0, 0, 'confetti', {
+      x: { min: 0, max: this.scale.width },
+      speedY: { min: 80, max: 200 },
+      speedX: { min: -60, max: 60 },
+      rotate: { min: 0, max: 360 },
+      lifespan: 4000,
+      tint: [0xff7ab0, 0xffe07a, 0x7ad0ff, 0xa8ff8a, 0xc8a0ff],
+      emitting: false,
+    }).setScrollFactor(0).setDepth(70);
+
     this.events.on('hero-landed', (x, y) => this.dust.explode(6, x, y));
     this.events.on('hero-jumped', (x, y) => this.dust.explode(4, x, y));
     // o chefe é gigante: cada golpe dele mexe a tela
@@ -306,7 +400,10 @@ export default class PlayScene extends Phaser.Scene {
     this.events.on('kaiju-roar', () => this.cameras.main.shake(260, 0.006));
     this.events.on('kaiju-tail', () => this.cameras.main.shake(160, 0.008));
     this.events.on('hazard-ground', (kind, x) => {
-      if (kind === 'lavabolt') {
+      if (kind === 'icicle' || kind === 'shard') {
+        this.snow.explode(8, x, GROUND_Y - 4);
+        this.shardBurst.explode(3, x, GROUND_Y - 8);
+      } else if (kind === 'lavabolt') {
         this.embers.explode(10, x, GROUND_Y - 6);
         this.cameras.main.shake(80, 0.004);
       } else {
@@ -346,6 +443,19 @@ export default class PlayScene extends Phaser.Scene {
     }
     this.leaves.explode(10, fruit.x, fruit.y);
     this.syncRegistry();
+  }
+
+  openChest() {
+    if (this.hero.hasShield) return;
+    this.hero.hasShield = true;
+    this.chest.setFrame('open');
+    this.chestArrow.destroy();
+    this.sparks.explode(20, this.chest.x, this.chest.y - 10);
+    const icon = this.add.image(this.chest.x, this.chest.y - 20, 'shield').setDepth(40).setScale(1.6);
+    this.tweens.add({ targets: icon, y: icon.y - 60, duration: 700, ease: 'Back.out', onComplete: () => this.tweens.add({ targets: icon, alpha: 0, x: this.hero.x, y: this.hero.sprite.y - 40, scale: 0.7, duration: 400, onComplete: () => icon.destroy() }) });
+    this.registry.set('banner', { text: 'Você ganhou um ESCUDO!', ms: 2200 });
+    this.registry.set('keyHint', { key: 'S', label: 'segure para se proteger', ms: 6000 });
+    this.registry.set('shield', true);
   }
 
   bossBar(e) {
@@ -445,7 +555,13 @@ export default class PlayScene extends Phaser.Scene {
       if (!hz.dead) boxes.push({ rect: hz.box(), damage: hz.damage, fromX: hz.sprite.x, hazard: hz });
     }
     for (const a of boxes) {
+      if (a.hazard?.friendly) continue;
       if (!Phaser.Geom.Intersects.RectangleToRectangle(heroBox, a.rect)) continue;
+      const fromAbove = !!a.hazard?.fromAbove;
+      if (shieldBlocks(this.hero, { fromX: a.fromX, fromAbove })) {
+        this.onBlocked(a);
+        continue;
+      }
       const r = this.hero.takeHit(a.damage, a.fromX, now);
       a.onHit?.();
       if (a.hazard && !a.hazard.persistent) a.hazard.kill();
@@ -456,6 +572,64 @@ export default class PlayScene extends Phaser.Scene {
       this.syncRegistry();
       if (r.died) this.onHeroDied();
       return;
+    }
+  }
+
+  onBlocked(a) {
+    const h = this.hero;
+    const fx = h.x + h.facing * 18;
+    const fy = h.sprite.y - 44;
+    this.sparks.explode(10, fx, fy);
+    this.counters.blocked++;
+    if (a.hazard?.reflectable) {
+      this.counters.reflected++;
+      a.hazard.reflect(fx, fy);
+      this.popText(fx, fy - 30, 'devolveu!', '#ffe07a', 18);
+    } else {
+      if (a.hazard) a.hazard.kill();
+      else a.onHit?.();
+      if (!a.hazard) h.sprite.body.setVelocityX(-h.facing * HERO.shield.pushback);
+      this.popText(fx, fy - 30, 'bloqueou!', '#c8e8ff', 16);
+    }
+    this.cameras.main.shake(60, 0.003);
+  }
+
+  /** Estilhaços devolvidos pelo escudo acertam os inimigos. */
+  resolveFriendly(now) {
+    for (const hz of this.hazards) {
+      if (hz.dead || !hz.friendly) continue;
+      const box = hz.box();
+      for (const d of this.enemies) {
+        if (!d.alive || !Phaser.Geom.Intersects.RectangleToRectangle(box, d.bounds())) continue;
+        const r = d.takeHit(hz.sprite.x, now);
+        if (!r.hit) continue;
+        hz.kill();
+        this.counters.reflectHits++;
+        this.sparks.explode(18, hz.sprite.x, hz.sprite.y);
+        this.popText(hz.sprite.x, hz.sprite.y - 20, `${r.amount}`, '#ffe07a');
+        this.cameras.main.shake(140, 0.008);
+        if (d.stats.boss) this.bossBar(d);
+        if (r.died) this.onEnemyKilled(d);
+        break;
+      }
+    }
+  }
+
+  /** Neve fofa: quem cai no buraco volta para a borda e perde um pouco de energia. */
+  checkFall(now) {
+    const hs = this.hero.sprite;
+    if (!this.hero.alive || hs.y < GROUND_Y + 60) return;
+    const gap = gapAt(hs.x, this.level) ?? gapAt(this.lastSafeX, this.level);
+    const x = gap ? fallReturnX(gap, this.lastSafeX) : this.lastSafeX;
+    this.snow.explode(16, hs.x, GROUND_Y + 30);
+    this.counters.falls++;
+    hs.body.reset(x, GROUND_Y - 40);
+    const r = applyDamage(this.hero.fighter, FALL_DAMAGE, now, 600);
+    this.popText(x, GROUND_Y - 100, r.hit ? `fofo! -${r.amount}` : 'fofo!', '#c8e8ff', 18);
+    this.syncRegistry();
+    if (r.died) {
+      this.hero.die();
+      this.onHeroDied();
     }
   }
 
@@ -487,7 +661,7 @@ export default class PlayScene extends Phaser.Scene {
       }
       this.registry.set('boss', null);
     }
-    this.hero.revive(x, GROUND_Y - 40, this.time.now);
+    this.hero.revive(gapAt(x, this.level) ? x - 200 : x, GROUND_Y - 40, this.time.now);
     this.lastGroundY = GROUND_Y;
     this.cameras.main.flash(300, 255, 255, 255);
     this.ended = false;
@@ -501,12 +675,99 @@ export default class PlayScene extends Phaser.Scene {
     this.run.outcome = 'victory';
     this.run.finishedAt = this.time.now;
     this.hero.sprite.body.setVelocity(0, 0);
+    if (this.level.finale) return this.playFinale();
     this.cameras.main.flash(400, 255, 240, 200);
     this.tweens.add({ targets: [this.hero.sprite, this.hero.sword], alpha: 0, duration: 900 });
     this.time.delayedCall(1100, () => this.finish());
   }
 
+  /** Final do jogo: a princesa sai do Castelo Dourado e vem até o herói. */
+  playFinale() {
+    const L = this.level;
+    const h = this.hero;
+    const gateX = L.castleGateX;
+    this.finale = { stage: 'walk' };
+    h.facing = 1;
+    h.sprite.anims.play('hero-idle');
+    h.sprite.setFlipX(false).setAlpha(1);
+    h.blocking = false;
+    h.sprite.body.reset(gateX - 130, GROUND_Y);
+    h.placeSword(this.time.now);
+    h.placeShield();
+    this.registry.set('boss', null);
+    const gate = this.add.image(gateX, GROUND_Y + 8, 'gateOpen').setOrigin(0.5, 1).setDepth(-1).setScale(0.95, 0.01);
+    this.tweens.add({ targets: gate, scaleY: 0.95, duration: 700, ease: 'Cubic.out' });
+    this.sparks.explode(30, gateX, GROUND_Y - 60);
+    const princess = this.add.sprite(gateX, GROUND_Y + 2, 'princess', 'idle').setOrigin(0.5, 1).setDepth(10).setFlipX(true).setAlpha(0);
+    this.princess = princess;
+    this.tweens.add({ targets: princess, alpha: 1, duration: 500, delay: 600 });
+    this.time.delayedCall(1100, () => {
+      princess.play('princess-walk');
+      this.tweens.add({
+        targets: princess,
+        x: gateX - 60,
+        duration: 1400,
+        onComplete: () => {
+          princess.play('princess-wave');
+          this.celebrate();
+        },
+      });
+    });
+  }
+
+  celebrate() {
+    const W = this.scale.width;
+    this.finale.stage = 'party';
+    this.confetti.start();
+    const hearts = this.add.particles(0, 0, 'heart', {
+      x: { min: this.hero.x - 10, max: this.princess.x + 10 },
+      y: GROUND_Y - 90,
+      speedY: { min: -90, max: -40 },
+      speedX: { min: -30, max: 30 },
+      scale: { start: 0.7, end: 0.2 },
+      alpha: { start: 1, end: 0 },
+      lifespan: 1800,
+      frequency: 220,
+    }).setDepth(41);
+    this.finaleHearts = hearts;
+    const msg = this.add
+      .text(W / 2, 170, this.level.finale.message, {
+        fontFamily: 'Trebuchet MS, Verdana, sans-serif',
+        fontSize: '54px',
+        fontStyle: 'bold',
+        color: '#ffe07a',
+        stroke: '#4a1a5a',
+        strokeThickness: 10,
+        align: 'center',
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(80)
+      .setScale(0.2);
+    this.finaleText = msg;
+    this.tweens.add({ targets: msg, scale: 1, duration: 700, ease: 'Back.out' });
+    this.tweens.add({ targets: msg, angle: { from: -2, to: 2 }, yoyo: true, repeat: -1, duration: 900, ease: 'Sine.inOut', delay: 700 });
+    this.cameras.main.flash(500, 255, 240, 200);
+    this.time.delayedCall(3500, () => {
+      const cta = this.add
+        .text(W / 2, 240, 'Enter ou clique para continuar', {
+          fontFamily: 'Trebuchet MS, Verdana, sans-serif', fontSize: '22px', fontStyle: 'bold', color: '#ffffff', stroke: '#1d1d28', strokeThickness: 6,
+        })
+        .setOrigin(0.5)
+        .setScrollFactor(0)
+        .setDepth(80);
+      this.tweens.add({ targets: cta, alpha: 0.5, yoyo: true, repeat: -1, duration: 700 });
+      this.finale.stage = 'done';
+      const go = () => this.finish();
+      this.input.keyboard.once('keydown-ENTER', go);
+      this.input.keyboard.once('keydown-SPACE', go);
+      this.input.once('pointerdown', go);
+    });
+  }
+
   finish() {
+    if (this.finished) return;
+    this.finished = true;
     this.scene.stop('hud');
     this.scene.start('end', {
       outcome: this.run.outcome,
@@ -523,6 +784,7 @@ export default class PlayScene extends Phaser.Scene {
     this.registry.set('hero', { hp: this.hero.fighter.hp, max: this.hero.fighter.maxHp });
     this.registry.set('kills', { kills: this.run.kills, total: this.run.total });
     this.registry.set('lives', this.run.lives);
+    this.registry.set('shield', !!this.hero.hasShield);
   }
 
   // ------------------------------------------------------------ loop
@@ -555,17 +817,26 @@ export default class PlayScene extends Phaser.Scene {
         else d.shadow.setAlpha(d.sprite.active ? d.sprite.alpha * 0.5 : 0);
       }
     }
+    for (const m of this.movers) {
+      if (m.x >= m.maxX) m.body.setVelocityX(-m.speed);
+      else if (m.x <= m.minX) m.body.setVelocityX(m.speed);
+    }
     for (const hz of this.hazards) if (!hz.dead) hz.update(dt);
     this.hazards = this.hazards.filter((hz) => !hz.dead);
 
-    if (hs.body.blocked.down) this.lastGroundY = hs.body.bottom;
+    if (hs.body.blocked.down) {
+      this.lastGroundY = hs.body.bottom;
+      if (!gapAt(hs.x, this.level)) this.lastSafeX = hs.x;
+    }
     const air = Math.min(1, Math.max(0, (this.lastGroundY - hs.body.bottom) / 140));
     this.heroShadow.setPosition(hs.x, this.lastGroundY + 1).setScale(0.75 - air * 0.35, 1).setAlpha((1 - air * 0.6) * hs.alpha);
     if (this.ended) return;
 
     this.checkEncounters();
+    this.checkFall(time);
     this.resolveSword(time);
     this.resolveAttacks(time);
+    this.resolveFriendly(time);
     this.checkCastle();
     this.registry.set('progress', progress(this.hero.x, this.level));
   }

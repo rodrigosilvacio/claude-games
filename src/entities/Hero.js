@@ -24,6 +24,10 @@ export default class Hero {
 
     this.sword = scene.add.image(x, y, 'sword').setOrigin(0.12, 0.5).setDepth(11);
     this.slash = scene.add.image(x, y, 'slash').setDepth(12).setVisible(false).setBlendMode('ADD');
+    // escudo (Fase 3): nas costas quando guardado, na frente quando segurando S
+    this.hasShield = false;
+    this.blocking = false;
+    this.shieldImg = scene.add.image(x, y, 'shield').setVisible(false);
   }
 
   get x() {
@@ -67,7 +71,8 @@ export default class Hero {
     // corrida com aceleração
     const dir = (input.right ? 1 : 0) - (input.left ? 1 : 0);
     if (dir !== 0 && !this.attack) this.facing = dir;
-    const target = dir * MOVE.runSpeed; // golpear não trava as pernas
+    this.blocking = this.hasShield && !!input.shield && !this.attack;
+    const target = dir * MOVE.runSpeed * (this.blocking ? HERO.shield.speedMult : 1); // golpear não trava as pernas
     const accel = onGround ? MOVE.accelGround : MOVE.accelAir;
     const vx = body.velocity.x;
     const step = accel * dt;
@@ -85,7 +90,7 @@ export default class Hero {
     body.setGravityY(body.velocity.y > 0 ? MOVE.fallGravityExtra : 0);
 
     // ataque
-    if (input.attackPressed && now >= this.attackReadyAt) this.startAttack(now);
+    if (input.attackPressed && !this.blocking && now >= this.attackReadyAt) this.startAttack(now);
     if (this.attack && now - this.attack.startedAt > HERO.attackCooldownMs) this.attack = null;
 
     // animação
@@ -101,6 +106,19 @@ export default class Hero {
     s.setAlpha(now < this.fighter.invulnUntil ? (Math.floor(now / 70) % 2 ? 0.35 : 1) : 1);
 
     this.placeSword(now);
+    this.placeShield();
+  }
+
+  placeShield() {
+    const s = this.sprite;
+    const img = this.shieldImg;
+    if (!this.hasShield || !this.alive) return img.setVisible(false);
+    const f = this.facing;
+    if (this.blocking) {
+      img.setPosition(s.x + f * 17, s.y - 42).setScale(1.05).setFlipX(f < 0).setDepth(12).setAlpha(s.alpha).setVisible(true);
+    } else {
+      img.setPosition(s.x - f * 9, s.y - 46).setScale(0.7).setFlipX(f > 0).setDepth(9).setAlpha(s.alpha).setVisible(true);
+    }
   }
 
   /** Troca entre corrida normal e corrida golpeando sem perder o passo. */
@@ -183,5 +201,7 @@ export default class Hero {
     s.body.setVelocityX(0);
     this.sword.setVisible(false);
     this.slash.setVisible(false);
+    this.shieldImg.setVisible(false);
+    this.blocking = false;
   }
 }

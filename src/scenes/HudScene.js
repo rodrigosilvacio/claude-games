@@ -36,6 +36,10 @@ export default class HudScene extends Phaser.Scene {
       'changedata-banner': (_p, v) => this.showBanner(v),
       'changedata-boss': (_p, v) => this.drawBoss(v),
       'setdata-boss': (_p, _k, v) => this.drawBoss(v),
+      'changedata-keyHint': (_p, v) => this.showKeyHint(v),
+      'setdata-keyHint': (_p, _k, v) => this.showKeyHint(v),
+      'changedata-shield': (_p, v) => this.shieldBtn?.setVisible(!!v),
+      'setdata-shield': (_p, _k, v) => this.shieldBtn?.setVisible(!!v),
     };
     for (const [evt, fn] of Object.entries(handlers)) this.registry.events.on(evt, fn);
     // o registry sobrevive às cenas: remover listeners ou eles se acumulam a cada reinício
@@ -67,6 +71,25 @@ export default class HudScene extends Phaser.Scene {
     if (ratio <= 0.25 && ratio > 0) {
       this.tweens.add({ targets: this.hpText, scale: 1.2, yoyo: true, duration: 120 });
     }
+  }
+
+  /** Dica visual para quem ainda não lê: uma tecla desenhada que pisca. */
+  showKeyHint(v) {
+    if (!v) return;
+    this.keyHint?.destroy();
+    const W = this.scale.width;
+    const c = this.add.container(W / 2, 330);
+    const touch = this.sys.game.device.input.touch;
+    const g = this.add.graphics();
+    g.fillStyle(0x1d1d28, 0.55).fillRoundedRect(-170, -40, 340, 80, 16);
+    g.fillStyle(0xffffff).fillRoundedRect(-150, -28, 56, 56, 10);
+    g.lineStyle(3, 0x1d1d28).strokeRoundedRect(-150, -28, 56, 56, 10);
+    const key = this.add.text(-122, 0, touch ? '🛡' : v.key, { fontFamily: FONT, fontSize: '32px', fontStyle: 'bold', color: '#1d1d28' }).setOrigin(0.5);
+    const label = this.add.text(-80, 0, v.label, { fontFamily: FONT, fontSize: '20px', fontStyle: 'bold', color: '#ffffff', stroke: '#1d1d28', strokeThickness: 4 }).setOrigin(0, 0.5);
+    c.add([g, key, label]);
+    this.keyHint = c;
+    this.tweens.add({ targets: key, scale: 1.25, yoyo: true, repeat: -1, duration: 380 });
+    this.tweens.add({ targets: c, alpha: 0, delay: v.ms ?? 5000, duration: 600, onComplete: () => c.destroy() });
   }
 
   drawLives(n) {
@@ -127,5 +150,10 @@ export default class HudScene extends Phaser.Scene {
     button(175, H - 70, 44, '▶', () => (touch.right = true), () => (touch.right = false));
     button(W - 180, H - 70, 44, '⤒', () => (touch.jump = true), () => (touch.jump = false));
     button(W - 72, H - 92, 54, '⚔', () => (touch.attackPressed = true));
+    // escudo: aparece quando o Pepe encontra o baú
+    const before = this.children.list.length;
+    button(W - 140, H - 190, 40, '🛡', () => (touch.shield = true), () => (touch.shield = false));
+    this.shieldBtn = this.add.container(0, 0, this.children.list.slice(before));
+    this.shieldBtn.setVisible(!!this.registry.get('shield'));
   }
 }

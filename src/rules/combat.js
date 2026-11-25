@@ -9,6 +9,8 @@ export const HERO = {
   attackActiveMs: 130, // janela em que a espada causa dano
   knockback: { x: 280, y: -260 },
   clearHeal: 15, // vida recuperada ao liberar uma área
+  // escudo (Fase 3, tecla S): segurando, bloqueia o que vem da frente e de cima
+  shield: { speedMult: 0.45, pushback: 140 },
 };
 
 // Tabela de dinossauros (desenho original do projeto).
@@ -127,6 +129,101 @@ export const DINOS = {
     body: { w: 170, h: 140, ox: 65, oy: 108 },
     boss: true,
   },
+  // ---------------------------------------------------------------- Fase 3
+  raptorSnow: {
+    label: 'Raptor da neve',
+    maxHp: 60,
+    damage: 12,
+    patrolSpeed: 60,
+    chaseSpeed: 175,
+    aggroRange: 380,
+    attackRange: 120,
+    windupMs: 400,
+    lungeMs: 260,
+    lungeSpeed: 420,
+    recoverMs: 700,
+    knockbackTaken: 260,
+    poise: 1,
+    size: { w: 84, h: 56 },
+    body: { w: 56, h: 36, ox: 14, oy: 18 },
+  },
+  yeti: {
+    label: 'Yeti filhote',
+    kind: 'yeti',
+    maxHp: 68, // 2 golpes
+    damage: 10, // empurrão de perto
+    ballDamage: 10,
+    range: 560,
+    slapRange: 84,
+    windupMs: 700, // levanta a bola de neve acima da cabeça
+    throwEveryMs: 2200,
+    ballFlightMs: 1000,
+    knockbackTaken: 120,
+    poise: 1,
+    size: { w: 70, h: 76 },
+    body: { w: 44, h: 56, ox: 13, oy: 18 },
+  },
+  penguin: {
+    label: 'Pinguim escorregadio',
+    kind: 'penguin',
+    maxHp: 68,
+    damage: 12,
+    aggroRange: 520,
+    crouchMs: 650, // agacha e balança antes de deslizar
+    slideSpeed: 400,
+    slideMaxMs: 1400,
+    dizzyMs: 1700, // tonto depois de bater: hora de golpear
+    walkSpeed: 50,
+    knockbackTaken: 160,
+    poise: 1,
+    size: { w: 66, h: 52 },
+    body: { w: 38, h: 34, ox: 14, oy: 16 },
+  },
+  ptero: {
+    label: 'Ptero de gelo',
+    kind: 'ptero',
+    maxHp: 68,
+    damage: 10,
+    icicleDamage: 14,
+    hoverHeight: 165, // só dá para acertar pulando
+    hoverSpeed: 120,
+    aggroRange: 440,
+    warnMs: 800, // sombra no chão mostra onde o pingente vai cair
+    cooldownMs: 1500,
+    knockbackTaken: 200,
+    poise: 1,
+    size: { w: 96, h: 60 },
+    body: { w: 50, h: 28, ox: 23, oy: 16 },
+  },
+  serpent: {
+    label: 'Serpente de Cristal',
+    kind: 'serpent',
+    maxHp: 340, // 10 golpes (espada ou estilhaço devolvido)
+    lungeDamage: 20,
+    shardDamage: 12,
+    emergeMs: 900, // o buraco treme antes de ela sair
+    castWindupMs: 700,
+    castMs: 2400, // fica exposta enquanto os estilhaços caem
+    lungeWindupMs: 900,
+    lungeMs: 450,
+    lungeSpeed: 640,
+    stuckMs: 1600, // presa no gelo depois do bote: hora de golpear
+    submergeMs: 450,
+    hiddenMs: 900,
+    markerMs: 800,
+    shardFallSpeed: 700,
+    reflectSpeed: 650,
+    shardSpread: 95,
+    minEmergeDist: 200,
+    enragedAt: 0.5,
+    knockbackTaken: 0,
+    poise: Infinity,
+    size: { w: 260, h: 210 },
+    bodyUp: { w: 80, h: 170, ox: 90, oy: 38 },
+    bodyLow: { w: 210, h: 64, ox: 25, oy: 144 },
+    body: { w: 80, h: 170, ox: 90, oy: 38 },
+    boss: true,
+  },
 };
 
 export function createFighter(maxHp) {
@@ -166,4 +263,15 @@ export function hpRatio(fighter) {
 /** Velocidade de pulo para atingir `height` px com gravidade `gravity` px/s². */
 export function jumpVelocity(height, gravity) {
   return -Math.sqrt(2 * gravity * height);
+}
+
+/**
+ * Escudo: segurando S, bloqueia ataques que vêm da frente ou de cima.
+ * Só quem ataca pelas costas atravessa a defesa.
+ */
+export function shieldBlocks(hero, attack) {
+  if (!hero.blocking) return false;
+  if (attack.fromAbove) return true;
+  const dx = attack.fromX - hero.x;
+  return Math.abs(dx) < 8 || Math.sign(dx) === hero.facing;
 }
