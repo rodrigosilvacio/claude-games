@@ -1,4 +1,23 @@
 import { buildTextures, buildAnimations } from '../art/textures.js';
+import { buildNightTextures, buildNightAnimations } from '../art/night.js';
+import { LAST_PHASE, LEVELS, livesForNextPhase } from '../rules/level.js';
+
+// Fase 2 liberada fica guardada só neste navegador (conveniência; o jogo funciona sem).
+const UNLOCK_KEY = 'pepe.fase2';
+const isUnlocked = () => {
+  try {
+    return localStorage.getItem(UNLOCK_KEY) === '1';
+  } catch {
+    return false;
+  }
+};
+const unlock = () => {
+  try {
+    localStorage.setItem(UNLOCK_KEY, '1');
+  } catch {
+    /* sem armazenamento: ok */
+  }
+};
 
 const FONT = 'Trebuchet MS, Verdana, sans-serif';
 
@@ -10,11 +29,24 @@ export class BootScene extends Phaser.Scene {
   create() {
     buildTextures(this);
     buildAnimations(this);
+    buildNightTextures(this);
+    buildNightAnimations(this);
     this.scene.start('title');
   }
 }
 
-function backdrop(scene) {
+function backdrop(scene, theme = 'day') {
+  if (theme === 'night') {
+    scene.add.image(0, 0, 'sky2').setOrigin(0);
+    scene.add.tileSprite(0, 130, 960, 300, 'far2').setOrigin(0);
+    scene.add.image(720, 330, 'castleFar2').setOrigin(0.5, 1).setScale(0.4);
+    scene.add.tileSprite(0, 250, 960, 220, 'mid2').setOrigin(0);
+    scene.add.tileSprite(0, 245, 960, 260, 'forest2').setOrigin(0);
+    scene.add.tileSprite(0, 470, 960, 96, 'ground2').setOrigin(0);
+    scene.add.tileSprite(0, 330, 960, 160, 'mist').setOrigin(0).setAlpha(0.8);
+    scene.add.image(0, 0, 'vignette').setOrigin(0).setDepth(100);
+    return;
+  }
   scene.add.image(0, 0, 'sky').setOrigin(0);
   scene.add.image(0, 0, 'rays').setOrigin(0).setBlendMode('ADD');
   scene.add.image(180, 110, 'cloud').setScale(0.8);
@@ -81,7 +113,13 @@ export class TitleScene extends Phaser.Scene {
       .setOrigin(0.5);
     this.tweens.add({ targets: cta, scale: 1.08, yoyo: true, repeat: -1, duration: 650, ease: 'Sine.inOut' });
 
-    startOnInput(this, () => this.scene.start('play'));
+    if (isUnlocked() && !touch) {
+      this.add
+        .text(W / 2, 290, 'Tecla 2: ir direto para a Fase 2', { fontFamily: FONT, fontSize: '17px', color: '#c8e0ff', stroke: '#1d1d28', strokeThickness: 4 })
+        .setOrigin(0.5);
+      this.input.keyboard.once('keydown-TWO', () => this.scene.start('play', { phase: 2 }));
+    }
+    startOnInput(this, () => this.scene.start('play', { phase: 1 }));
   }
 }
 
@@ -96,46 +134,73 @@ export class EndScene extends Phaser.Scene {
 
   create() {
     const W = this.scale.width;
-    const { outcome, kills, total, timeMs, hp, lives } = this.result;
+    const { outcome, kills, total, timeMs, hp, lives, phase = 1 } = this.result;
     const won = outcome === 'victory';
-    backdrop(this);
-    this.add.rectangle(0, 0, W, 540, won ? 0x1a2a10 : 0x2a0d10, won ? 0.35 : 0.55).setOrigin(0);
+    const next = won && phase < LAST_PHASE ? phase + 1 : null;
+    const finalWin = won && !next;
+    const night = LEVELS[phase]?.theme === 'night';
+    backdrop(this, night ? 'night' : 'day');
+    this.add.rectangle(0, 0, W, 540, won ? 0x1a2a10 : 0x2a0d10, won ? 0.3 : 0.55).setOrigin(0);
+    if (won && phase === 1) unlock();
 
     if (won) {
-      this.add.image(W / 2, 470, 'castle').setOrigin(0.5, 1).setScale(0.55);
+      this.add.image(W / 2, 470, night ? 'castle2' : 'castle').setOrigin(0.5, 1).setScale(0.55);
       const hero = this.add.sprite(W / 2 - 180, 472, 'hero', 'idle0').setOrigin(0.5, 1).setScale(1.5);
       hero.play('hero-idle');
     } else {
       this.add.image(W / 2, 466, 'hero-dead').setOrigin(0.5, 1).setScale(1.8);
     }
 
+    const title = finalWin ? 'VITÓRIA!' : won ? `FASE ${phase} CONCLUÍDA!` : 'FIM DE JOGO';
+    const line = finalWin
+      ? 'O Pepe venceu o Colosso de Magma e chegou ao Castelo Azul!'
+      : won
+        ? `O Pepe chegou ao castelo... mas a jornada continua: ${LEVELS[next].name}.`
+        : `Os ${LEVELS[phase].enemyWord} venceram desta vez. O castelo ainda espera.`;
     this.add
-      .text(W / 2, 96, won ? 'VITÓRIA!' : 'FIM DE JOGO', {
-        fontFamily: FONT, fontSize: '62px', fontStyle: 'bold', color: won ? '#ffe14a' : '#ff8a8a', stroke: '#1d1d28', strokeThickness: 10,
+      .text(W / 2, 96, title, {
+        fontFamily: FONT, fontSize: '58px', fontStyle: 'bold', color: won ? '#ffe14a' : '#ff8a8a', stroke: '#1d1d28', strokeThickness: 10,
       })
       .setOrigin(0.5);
     this.add
-      .text(W / 2, 156, won ? 'O herói chegou ao castelo.' : 'Os dinossauros venceram desta vez. O castelo ainda espera.', {
-        fontFamily: FONT, fontSize: '20px', color: '#ffffff', stroke: '#1d1d28', strokeThickness: 5,
-      })
+      .text(W / 2, 156, line, { fontFamily: FONT, fontSize: '20px', color: '#ffffff', stroke: '#1d1d28', strokeThickness: 5 })
       .setOrigin(0.5);
 
     const secs = Math.round(timeMs / 1000);
     const time = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
     const stats = won
-      ? `Dinossauros: ${kills}/${total}     Tempo: ${time}     Energia: ${hp}     Vidas: ${lives}`
-      : `Dinossauros derrotados: ${kills}/${total}     Tempo: ${time}`;
+      ? `Inimigos: ${kills}/${total}     Tempo: ${time}     Energia: ${hp}     Vidas: ${lives}`
+      : `Inimigos derrotados: ${kills}/${total}     Tempo: ${time}`;
     this.add
       .text(W / 2, 200, stats, { fontFamily: FONT, fontSize: '17px', color: '#fff6dc', stroke: '#1d1d28', strokeThickness: 4 })
       .setOrigin(0.5);
 
+    // Para onde o Enter leva: próxima fase (levando as vidas), mesma fase de novo, ou início.
+    let label;
+    let go;
+    if (next) {
+      const carry = livesForNextPhase(lives);
+      label = `Enter: Fase ${next}  (você leva ${carry} vidas)`;
+      go = () => this.scene.start('play', { phase: next, lives: carry });
+    } else if (finalWin) {
+      label = 'Enter: jogar de novo';
+      go = () => this.scene.start('title');
+    } else {
+      label = `Enter: tentar a Fase ${phase} de novo`;
+      go = () => this.scene.start('play', { phase });
+    }
+    this.next = { phase: next, label };
     const cta = this.add
-      .text(W / 2, 250, 'Enter ou clique para jogar de novo', {
-        fontFamily: FONT, fontSize: '24px', fontStyle: 'bold', color: '#ffffff', stroke: '#1d1d28', strokeThickness: 6,
-      })
+      .text(W / 2, 250, label, { fontFamily: FONT, fontSize: '24px', fontStyle: 'bold', color: '#ffffff', stroke: '#1d1d28', strokeThickness: 6 })
       .setOrigin(0.5);
     this.tweens.add({ targets: cta, alpha: 0.5, yoyo: true, repeat: -1, duration: 700 });
+    if (!won) {
+      this.add
+        .text(W / 2, 290, 'Esc: voltar ao início', { fontFamily: FONT, fontSize: '16px', color: '#fff6dc', stroke: '#1d1d28', strokeThickness: 4 })
+        .setOrigin(0.5);
+      this.input.keyboard.once('keydown-ESC', () => this.scene.start('title'));
+    }
 
-    this.time.delayedCall(600, () => startOnInput(this, () => this.scene.start('play')));
+    this.time.delayedCall(600, () => startOnInput(this, go));
   }
 }

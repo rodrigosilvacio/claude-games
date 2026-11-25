@@ -66,6 +66,67 @@ export const DINOS = {
     body: { w: 116, h: 76, ox: 37, oy: 64 }, // baixo o bastante para pular por cima
     boss: true,
   },
+  // ---------------------------------------------------------------- Fase 2
+  bat: {
+    label: 'Morcego sombrio',
+    kind: 'bat',
+    maxHp: 34, // 1 golpe
+    damage: 10,
+    hoverHeight: 150, // acima do chão: só dá para acertar pulando ou quando ele mergulha
+    hoverSpeed: 130,
+    aggroRange: 380,
+    windupMs: 480,
+    swoopSpeed: 420,
+    recoverMs: 900,
+    cooldownMs: 700,
+    knockbackTaken: 220,
+    poise: 1,
+    size: { w: 72, h: 48 },
+    body: { w: 40, h: 26, ox: 16, oy: 12 },
+  },
+  plant: {
+    label: 'Planta cuspidora',
+    kind: 'plant',
+    maxHp: 68, // 2 golpes
+    damage: 12, // mordida
+    sporeDamage: 10,
+    range: 560,
+    biteRange: 90,
+    windupMs: 520,
+    shootEveryMs: 2300,
+    sporeFlightMs: 950,
+    knockbackTaken: 0,
+    poise: 1,
+    size: { w: 72, h: 84 },
+    body: { w: 42, h: 62, ox: 15, oy: 20 },
+  },
+  kaiju: {
+    label: 'Colosso de Magma',
+    kind: 'kaiju',
+    maxHp: 640, // 19 golpes
+    damage: 22, // pisão de perto
+    shockDamage: 18,
+    boltDamage: 14,
+    fireDamage: 8,
+    tailDamage: 20,
+    walkSpeed: 70,
+    aggroRange: 900,
+    stompRange: 300,
+    tailRange: 260,
+    windup: { stomp: 950, bolts: 850, tail: 600 }, // avisos longos e diferentes para cada golpe
+    activeMs: { stomp: 260, bolts: 320, tail: 320 },
+    recoverMs: 1100, // janela para contra-atacar
+    cooldownMs: 700,
+    turnDelayMs: 650, // demora para virar: ficar atrás dele é uma estratégia
+    enragedAt: 0.5, // abaixo de 50% fica mais rápido e cospe mais lava
+    shockSpeed: 380,
+    shockHeight: 28, // baixa o bastante para pular por cima
+    knockbackTaken: 0,
+    poise: Infinity,
+    size: { w: 300, h: 250 },
+    body: { w: 170, h: 140, ox: 65, oy: 108 },
+    boss: true,
+  },
 };
 
 export function createFighter(maxHp) {
