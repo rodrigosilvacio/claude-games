@@ -14,6 +14,7 @@ Rei Rex para entrar no castelo. Se a vida zerar, ele cai e não chega.
 - Ao vencer uma fase, o Pepe leva as vidas para a próxima (no mínimo 3, no máximo 9).
 - Perdeu todas as vidas na Fase 2? Recomeça na Fase 2, não do início.
 - Depois de vencer a Fase 1 uma vez, a tecla **2** na tela inicial leva direto para a Fase 2.
+  Para testar sem vencer a Fase 1, abra o jogo com `#fase2` no fim do endereço.
 
 **Novidades da Fase 2:**
 - **Morcego sombrio** voa alto demais para a espada: pule e golpeie no ar, ou acerte quando ele mergulhar.

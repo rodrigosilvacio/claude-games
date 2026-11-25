@@ -113,6 +113,7 @@ export class TitleScene extends Phaser.Scene {
       .setOrigin(0.5);
     this.tweens.add({ targets: cta, scale: 1.08, yoyo: true, repeat: -1, duration: 650, ease: 'Sine.inOut' });
 
+    if (location.hash === '#fase2') unlock(); // link direto para testar a Fase 2
     if (isUnlocked() && !touch) {
       this.add
         .text(W / 2, 290, 'Tecla 2: ir direto para a Fase 2', { fontFamily: FONT, fontSize: '17px', color: '#c8e0ff', stroke: '#1d1d28', strokeThickness: 4 })
