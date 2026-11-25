@@ -9,12 +9,12 @@
 // - Paleta da referência: céu azul claro, montanhas azul-lavanda com neve, lago turquesa,
 //   floresta verde em três valores, pedra clara, telhados vermelhos.
 
-const OUT = '#2a1d24';
-const TAU = Math.PI * 2;
+export const OUT = '#2a1d24';
+export const TAU = Math.PI * 2;
 
 // ------------------------------------------------------------------ utilitários
 
-function rng(seed) {
+export function rng(seed) {
   let s = seed >>> 0;
   return () => {
     s = (s * 1664525 + 1013904223) >>> 0;
@@ -22,7 +22,7 @@ function rng(seed) {
   };
 }
 
-function canvasTex(scene, key, w, h, draw) {
+export function canvasTex(scene, key, w, h, draw) {
   if (scene.textures.exists(key)) scene.textures.remove(key);
   const t = scene.textures.createCanvas(key, w, h);
   const ctx = t.getContext();
@@ -32,7 +32,7 @@ function canvasTex(scene, key, w, h, draw) {
 }
 
 /** Folha de quadros nomeados lado a lado numa única textura. */
-function sheet(scene, key, fw, fh, names, drawFrame) {
+export function sheet(scene, key, fw, fh, names, drawFrame) {
   if (scene.textures.exists(key)) scene.textures.remove(key);
   const t = scene.textures.createCanvas(key, fw * names.length, fh);
   const ctx = t.getContext();
@@ -49,20 +49,20 @@ function sheet(scene, key, fw, fh, names, drawFrame) {
   t.refresh();
 }
 
-function lin(ctx, x0, y0, x1, y1, stops) {
+export function lin(ctx, x0, y0, x1, y1, stops) {
   const g = ctx.createLinearGradient(x0, y0, x1, y1);
   stops.forEach(([o, c]) => g.addColorStop(o, c));
   return g;
 }
 
-function rad(ctx, x, y, r0, r1, stops, x1 = x, y1 = y) {
+export function rad(ctx, x, y, r0, r1, stops, x1 = x, y1 = y) {
   const g = ctx.createRadialGradient(x, y, r0, x1, y1, r1);
   stops.forEach(([o, c]) => g.addColorStop(o, c));
   return g;
 }
 
 /** Preenche o caminho atual e contorna. */
-function paint(ctx, fill, stroke = OUT, width = 2) {
+export function paint(ctx, fill, stroke = OUT, width = 2) {
   ctx.fillStyle = fill;
   ctx.fill();
   if (stroke) {
@@ -74,7 +74,7 @@ function paint(ctx, fill, stroke = OUT, width = 2) {
 }
 
 /** Membro arredondado (linha grossa com contorno) passando pelos pontos. */
-function limb(ctx, pts, w, color, outline = true) {
+export function limb(ctx, pts, w, color, outline = true) {
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   const path = () => {
@@ -95,7 +95,7 @@ function limb(ctx, pts, w, color, outline = true) {
 }
 
 /** Perna de dois segmentos: ângulos absolutos a partir da vertical (positivo = para frente). */
-function legPoints(hx, hy, thighA, shinA, l1, l2) {
+export function legPoints(hx, hy, thighA, shinA, l1, l2) {
   const kx = hx + Math.sin(thighA) * l1;
   const ky = hy + Math.cos(thighA) * l1;
   return [
@@ -105,13 +105,13 @@ function legPoints(hx, hy, thighA, shinA, l1, l2) {
   ];
 }
 
-function ellipse(ctx, x, y, rx, ry, rot = 0) {
+export function ellipse(ctx, x, y, rx, ry, rot = 0) {
   ctx.beginPath();
   ctx.ellipse(x, y, rx, ry, rot, 0, TAU);
 }
 
 // Desenha algo em x e nas cópias deslocadas, para texturas que repetem sem emenda.
-function wrapX(w, x, fn) {
+export function wrapX(w, x, fn) {
   fn(x);
   fn(x - w);
   fn(x + w);
@@ -352,7 +352,7 @@ function hills(scene) {
   });
 }
 
-function conifer(ctx, x, base, h, dark, mid, light) {
+export function conifer(ctx, x, base, h, dark, mid, light) {
   ctx.fillStyle = '#4a3020';
   ctx.fillRect(x - 3, base - h * 0.16, 6, h * 0.16);
   const tiers = 4;
@@ -371,7 +371,7 @@ function conifer(ctx, x, base, h, dark, mid, light) {
   }
 }
 
-function roundCanopy(ctx, x, base, r, dark, mid, light, seed) {
+export function roundCanopy(ctx, x, base, r, dark, mid, light, seed) {
   const rr = rng(seed);
   ctx.fillStyle = '#5a3a22';
   ctx.fillRect(x - r * 0.12, base - r * 1.1, r * 0.24, r * 1.1);
@@ -622,16 +622,28 @@ function fence(scene) {
 
 // ------------------------------------------------------------------ castelo
 
-function drawCastle(ctx) {
-  const stone = (x, y, w, h) => lin(ctx, x, y, x + w, y + h, [[0, '#cfc8bb'], [0.6, '#b4ac9e'], [1, '#8d8578']]);
+export const CASTLE_DAY = {
+  stone: ['#cfc8bb', '#b4ac9e', '#8d8578'],
+  merlon: '#c4bcae',
+  roof: ['#a8322b', '#d9503f', '#e8705a'],
+  roofLine: 'rgba(110,25,20,0.45)',
+  flag: ['#e8b84a', '#ffd978'],
+  banner: ['#a8322b', '#d9503f'],
+  emblem: '#ffd978',
+  window: ['#ffe8a0', '#f0a040'],
+  ivy: ['rgba(70,140,60,0.85)', 'rgba(40,100,45,0.85)'],
+};
+
+export function drawCastle(ctx, pal = CASTLE_DAY) {
+  const stone = (x, y, w, h) => lin(ctx, x, y, x + w, y + h, [[0, pal.stone[0]], [0.6, pal.stone[1]], [1, pal.stone[2]]]);
   const roof = (x, top, w, rh) => {
     ctx.beginPath();
     ctx.moveTo(x - 10, top + 2);
     ctx.quadraticCurveTo(x + w / 2, top - rh * 0.4, x + w / 2, top - rh);
     ctx.quadraticCurveTo(x + w / 2, top - rh * 0.4, x + w + 10, top + 2);
     ctx.closePath();
-    paint(ctx, lin(ctx, x, top - rh, x + w, top, [[0, '#a8322b'], [0.5, '#d9503f'], [1, '#e8705a']]));
-    ctx.strokeStyle = 'rgba(110,25,20,0.45)';
+    paint(ctx, lin(ctx, x, top - rh, x + w, top, [[0, pal.roof[0]], [0.5, pal.roof[1]], [1, pal.roof[2]]]));
+    ctx.strokeStyle = pal.roofLine;
     ctx.lineWidth = 1;
     for (let i = 1; i < 5; i++) {
       ctx.beginPath();
@@ -651,7 +663,7 @@ function drawCastle(ctx) {
     ctx.moveTo(x + 1, y - 30);
     ctx.quadraticCurveTo(x + 14, y - 34, x + 26, y - 26);
     ctx.quadraticCurveTo(x + 14, y - 20, x + 1, y - 18);
-    paint(ctx, lin(ctx, x, 0, x + 26, 0, [[0, '#e8b84a'], [1, '#ffd978']]), OUT, 1.5);
+    paint(ctx, lin(ctx, x, 0, x + 26, 0, [[0, pal.flag[0]], [1, pal.flag[1]]]), OUT, 1.5);
   };
   const window = (x, y, w = 10, h = 16) => {
     ctx.beginPath();
@@ -660,7 +672,7 @@ function drawCastle(ctx) {
     ctx.arc(x + w / 2, y + w / 2, w / 2, Math.PI, 0);
     ctx.lineTo(x + w, y + h);
     ctx.closePath();
-    paint(ctx, lin(ctx, 0, y, 0, y + h, [[0, '#ffe8a0'], [1, '#f0a040']]), '#4a4038', 1.5);
+    paint(ctx, lin(ctx, 0, y, 0, y + h, [[0, pal.window[0]], [1, pal.window[1]]]), '#4a4038', 1.5);
   };
   const tower = (x, w, top, rh, windows = 2) => {
     ctx.beginPath();
@@ -693,7 +705,7 @@ function drawCastle(ctx) {
   for (let x = 44; x < 476; x += 26) {
     ctx.beginPath();
     ctx.rect(x, 244, 15, 20);
-    paint(ctx, '#c4bcae', OUT, 1.5);
+    paint(ctx, pal.merlon, OUT, 1.5);
   }
   ctx.strokeStyle = 'rgba(90,80,70,0.3)';
   ctx.lineWidth = 1;
@@ -708,7 +720,7 @@ function drawCastle(ctx) {
   for (let i = 0; i < 140; i++) {
     const x = 60 + r() * 140 + (r() > 0.5 ? 260 : 0);
     const y = 330 + r() * 108;
-    ctx.fillStyle = r() > 0.5 ? 'rgba(70,140,60,0.85)' : 'rgba(40,100,45,0.85)';
+    ctx.fillStyle = r() > 0.5 ? pal.ivy[0] : pal.ivy[1];
     ellipse(ctx, x, y, 4, 3, r() * 3);
     ctx.fill();
   }
@@ -756,8 +768,8 @@ function drawCastle(ctx) {
     ctx.lineTo(x + 11, 320);
     ctx.lineTo(x, 330);
     ctx.closePath();
-    paint(ctx, lin(ctx, x, 0, x + 22, 0, [[0, '#a8322b'], [1, '#d9503f']]), OUT, 1.5);
-    ctx.fillStyle = '#ffd978';
+    paint(ctx, lin(ctx, x, 0, x + 22, 0, [[0, pal.banner[0]], [1, pal.banner[1]]]), OUT, 1.5);
+    ctx.fillStyle = pal.emblem;
     ellipse(ctx, x + 11, 298, 5, 5);
     ctx.fill();
   }
@@ -1094,7 +1106,7 @@ function hero(scene) {
 
 // ------------------------------------------------------------------ dinossauros
 
-function stripes(ctx, pts, color) {
+export function stripes(ctx, pts, color) {
   ctx.strokeStyle = color;
   ctx.lineWidth = 2.5;
   ctx.lineCap = 'round';
@@ -1106,7 +1118,7 @@ function stripes(ctx, pts, color) {
   }
 }
 
-function eye(ctx, x, y, r, iris = '#ffd23f') {
+export function eye(ctx, x, y, r, iris = '#ffd23f') {
   ellipse(ctx, x, y, r, r * 0.85);
   paint(ctx, iris, OUT, 1.2);
   ctx.fillStyle = OUT;

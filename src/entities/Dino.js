@@ -35,11 +35,12 @@ export default class Dino {
     return new Phaser.Geom.Rectangle(b.x, b.y, b.width, b.height);
   }
 
-  update(heroX, heroAlive, activeEncounterId, dtMs) {
+  /** @param {{heroX:number, heroAlive:boolean, activeId:string|null, dtMs:number, now:number}} ctx */
+  update(ctx) {
     if (!this.alive) return;
     const s = this.sprite;
-    const active = activeEncounterId === this.encounter.id;
-    const out = stepBrain(this.brain, { dx: heroX - s.x, dtMs, heroAlive, active }, this.stats);
+    const active = ctx.activeId === this.encounter.id;
+    const out = stepBrain(this.brain, { dx: ctx.heroX - s.x, dtMs: ctx.dtMs, heroAlive: ctx.heroAlive, active }, this.stats);
 
     // patrulha não sai da própria área
     if (this.brain.state === 'patrol') {
@@ -64,6 +65,16 @@ export default class Dino {
     }
 
     this.drawBar();
+  }
+
+  resetBrain() {
+    this.brain = createBrain(this.sprite.x);
+  }
+
+  /** Áreas que machucam o herói agora (o bote inteiro do dino). */
+  attackBoxes() {
+    if (!this.attacking) return [];
+    return [{ rect: this.bounds(), damage: this.stats.damage, fromX: this.sprite.x, onHit: () => (this.brain.hitLanded = true) }];
   }
 
   drawBar() {

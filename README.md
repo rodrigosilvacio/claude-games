@@ -4,6 +4,23 @@ Jogo 2D de ação no navegador. Um herói com espada atravessa a floresta, enfre
 dinossauros em arenas que só abrem quando todos são derrotados e precisa vencer o
 Rei Rex para entrar no castelo. Se a vida zerar, ele cai e não chega.
 
+## Fases
+
+| Fase | Cenário | Inimigos | Chefe | Destino |
+| :--- | :--- | :--- | :--- | :--- |
+| 1 | Floresta Ensolarada | Raptor, Tricerátopo | Rei Rex | Castelo Vermelho |
+| 2 | Floresta Sombria (noite, névoa, vaga-lumes) | Morcego sombrio, Planta cuspidora, Raptor, Tricerátopo | Colosso de Magma | Castelo Azul |
+
+- Ao vencer uma fase, o Pepe leva as vidas para a próxima (no mínimo 3, no máximo 9).
+- Perdeu todas as vidas na Fase 2? Recomeça na Fase 2, não do início.
+- Depois de vencer a Fase 1 uma vez, a tecla **2** na tela inicial leva direto para a Fase 2.
+  Para testar sem vencer a Fase 1, abra o jogo com `#fase2` no fim do endereço.
+
+**Novidades da Fase 2:**
+- **Morcego sombrio** voa alto demais para a espada: pule e golpeie no ar, ou acerte quando ele mergulhar.
+- **Planta cuspidora** fica parada, cospe esporos em arco e morde quem chega perto. A espada corta os esporos no ar.
+- **Colosso de Magma** (chefe): o pisão solta ondas de choque pelo chão (pule por cima), a chuva de lava deixa fogo no chão, e quem fica atrás dele leva uma rabada. Ele avisa antes de cada golpe (treme e esquenta) e fica parado depois. Abaixo da metade da vida, fica furioso: mais rápido e com mais lava.
+
 ## Como jogar
 
 | Ação | Teclado | Celular/tablet |
@@ -44,6 +61,8 @@ npm test                                  # regras (vida, dano, IA dos dinos, fa
 npm run smoke                             # robô joga a fase inteira no Chromium headless
 node tests/smoke.mjs --strategy=spam      # robô que só ataca, sem desviar
 npm run features                          # setas, maçã = +1 vida, renascer após cair
+npm run phase2                            # transição com vidas, robô limpa a Fase 2, rabada do chefe
+node tests/phase2.mjs --real              # robô sem invencibilidade (mede a dificuldade)
 ```
 
 O smoke test falha se houver erro no console ou se o robô "smart" não chegar ao castelo.
@@ -57,10 +76,13 @@ src/main.js             configuração do jogo
 src/rules/              regras puras, sem Phaser (testadas com node --test)
   combat.js             herói, tabela de dinossauros, dano, cura
   dinoBrain.js          máquina de estados: patrulha, persegue, aviso, bote, recuperação
-  level.js              fase: arenas, plataformas, frutas, castelo
-src/entities/           Hero (pulo, espada) e Dino (física + cérebro)
+  level.js              fases 1 e 2: arenas, plataformas, frutas, castelo, ritmo
+  monsterBrain.js       morcego, planta e Colosso de Magma (aviso → golpe → recuperação)
+  movement.js           números do pulo e da corrida
+src/entities/           Hero, Dino e Monsters (morcego, planta, Colosso, projéteis)
 src/scenes/             Play, HUD (com controles de toque), Boot/Título/Fim
-src/art/textures.js     toda a arte, pintada com Canvas 2D no boot (sem imagens externas)
+src/art/textures.js     arte da Fase 1, pintada com Canvas 2D no boot (sem imagens externas)
+src/art/night.js        arte da Fase 2: noite, névoa, monstros, Colosso, Castelo Azul
 tests/                  testes de regras e smoke test com robô
 ```
 
