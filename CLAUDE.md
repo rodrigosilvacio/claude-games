@@ -12,6 +12,7 @@ As skills em `.claude/skills/` vêm de
   classifica a tarefa e indica as 2 ou 3 skills a carregar (engine → disciplina → gênero → workflow).
 - Sem engine definida ainda, o router pergunta ou recomenda uma (§7 do `router/SKILL.md`).
 - Para atualizar: clonar o repositório de origem e recopiar `skills/**/` e `router/` para `.claude/skills/`.
+- Referência completa do repositório (docs, resultados dos testes, padrão de escrita, catálogo em português): `referencias/README.md` e `referencias/awesome-gamedev-agent-skills/`.
 
 ## Projeto atual: O Mundo do Pepe
 
