@@ -11,11 +11,12 @@ Rei Rex para entrar no castelo. Se a vida zerar, ele cai e não chega.
 | 1 | Floresta Ensolarada | Raptor, Tricerátopo | Rei Rex | Castelo Vermelho |
 | 2 | Floresta Sombria (noite, névoa, vaga-lumes) | Morcego sombrio, Planta cuspidora, Raptor, Tricerátopo | Colosso de Magma | Castelo Azul |
 | 3 | Picos de Cristal (neve ao amanhecer) | Yeti filhote, Pinguim escorregadio, Ptero de gelo, Raptor da neve | Serpente de Cristal | Castelo Dourado e a princesa |
+| 4 | Cidade das Torres (fim de tarde) | Terremotos (pedras e espinhos), moradores para resgatar | Titã dos Espinhos e Titã de Plasma | Portal para um novo mundo |
 
 - Ao vencer uma fase, o Pepe leva as vidas para a próxima (no mínimo 3, no máximo 9).
 - Perdeu todas as vidas na Fase 2? Recomeça na Fase 2, não do início.
-- Ao liberar uma fase, as teclas **2** e **3** na tela inicial levam direto para ela.
-  Para testar sem jogar as anteriores, abra o jogo com `#fase2` ou `#fase3` no fim do endereço.
+- Ao liberar uma fase, as teclas **2**, **3** e **4** na tela inicial levam direto para ela.
+  Para testar sem jogar as anteriores, abra o jogo com `#fase2`, `#fase3` ou `#fase4` no fim do endereço.
 
 **Novidades da Fase 2:**
 - **Morcego sombrio** voa alto demais para a espada: pule e golpeie no ar, ou acerte quando ele mergulhar.
@@ -28,6 +29,14 @@ Rei Rex para entrar no castelo. Se a vida zerar, ele cai e não chega.
 - **Yeti filhote** levanta a bola de neve antes de jogar (o escudo bloqueia). **Pinguim** agacha e desliza: pule por cima e golpeie enquanto ele fica tonto. **Ptero de gelo** marca com uma sombra onde o pingente vai cair.
 - **Serpente de Cristal** (chefe) sai de buracos no gelo (o buraco treme antes). Os estilhaços caem onde o chão brilha: segure o escudo e eles voltam e acertam a Serpente. Depois do bote ela fica presa no gelo: hora da espada.
 - **Final:** ao vencer, a princesa sai do Castelo Dourado e aparece "Parabéns, você é demais!!".
+
+**Novidades da Fase 4:**
+- **História em quadros** antes da fase: a princesa agradece, o chão treme, um titã acordou embaixo da cidade.
+- **Terremotos:** um alerta e um tremor leve vêm antes; as pedras marcam o chão onde vão cair (segure **S** para proteger a cabeça) e, no tremor forte, rachaduras brilham antes de os espinhos saírem (pule). O terremoto tira energia, nunca vidas de surpresa; as barreiras fecham até ele passar.
+- **Moradores:** se abaixam no tremor e comemoram as vitórias. Os que ficaram **presos nos escombros** pedem socorro: dois golpes de espada libertam, e cada um vale **+1 vida**.
+- **Titã dos Espinhos** (primeiro chefe, quem causa os terremotos): pisão que derruba pedras, fileira de espinhos vindo pelo chão até o herói, clava na cauda.
+- **A usina sobrecarrega** numa cena: a câmera mostra o clarão e o **Titã de Plasma** sai de lá. A **baforada de plasma** corre rente ao chão: segure o escudo de frente (ou suba num toldo). Depois dela, o titã fica superaquecido e vulnerável.
+- **Final:** vencidos os dois titãs, um portal se abre. O Pepe entra e aparece "Seja bem-vindo ao novo mundo, você é demais!".
 
 ## Como jogar
 
@@ -72,6 +81,8 @@ node tests/smoke.mjs --strategy=spam      # robô que só ataca, sem desviar
 npm run features                          # setas, maçã = +1 vida, renascer após cair
 npm run phase2                            # transição com vidas, robô limpa a Fase 2, rabada do chefe
 npm run phase3                            # escudo, plataformas, Serpente, final com a princesa
+npm run phase4                            # história, terremotos, resgates, dois titãs, usina, portal
+node tests/phase4.mjs --real              # robô sem invencibilidade na Fase 4
 node tests/phase3.mjs --real              # robô sem invencibilidade na Fase 3
 node tests/phase2.mjs --real              # robô sem invencibilidade (mede a dificuldade)
 ```
@@ -90,12 +101,14 @@ src/rules/              regras puras, sem Phaser (testadas com node --test)
   level.js              fases 1 e 2: arenas, plataformas, frutas, castelo, ritmo
   monsterBrain.js       morcego, planta e Colosso de Magma (aviso → golpe → recuperação)
   iceBrain.js           yeti, pinguim, ptero e Serpente de Cristal
+  cityRules.js          terremotos, fileira de espinhos, moradores presos
   movement.js           números do pulo e da corrida
-src/entities/           Hero (com escudo), Dino, Monsters e IceMonsters (inimigos e projéteis)
+src/entities/           Hero (com escudo), Dino, Monsters, IceMonsters e CityStuff (titãs, moradores, perigos)
 src/scenes/             Play, HUD (com controles de toque), Boot/Título/Fim
 src/art/textures.js     arte da Fase 1, pintada com Canvas 2D no boot (sem imagens externas)
 src/art/night.js        arte da Fase 2: noite, névoa, monstros, Colosso, Castelo Azul
 src/art/ice.js          arte da Fase 3: neve, cristais, monstros, Serpente, Castelo Dourado, princesa
+src/art/city.js         arte da Fase 4: cidade, moradores, usina, portal, Titã dos Espinhos, Titã de Plasma
 tests/                  testes de regras e smoke test com robô
 ```
 

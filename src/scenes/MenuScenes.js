@@ -1,6 +1,7 @@
 import { buildTextures, buildAnimations } from '../art/textures.js';
 import { buildNightTextures, buildNightAnimations } from '../art/night.js';
 import { buildIceTextures, buildIceAnimations } from '../art/ice.js';
+import { buildCityTextures, buildCityAnimations } from '../art/city.js';
 import { LAST_PHASE, LEVELS, livesForNextPhase } from '../rules/level.js';
 
 // Maior fase liberada fica guardada só neste navegador (conveniência; o jogo funciona sem).
@@ -36,11 +37,22 @@ export class BootScene extends Phaser.Scene {
     buildNightAnimations(this);
     buildIceTextures(this);
     buildIceAnimations(this);
+    buildCityTextures(this);
+    buildCityAnimations(this);
     this.scene.start('title');
   }
 }
 
 function backdrop(scene, theme = 'day') {
+  if (theme === 'city') {
+    scene.add.image(0, 0, 'sky4').setOrigin(0);
+    scene.add.tileSprite(0, 150, 960, 300, 'far4').setOrigin(0);
+    scene.add.tileSprite(0, 250, 960, 220, 'mid4').setOrigin(0);
+    scene.add.tileSprite(0, 215, 960, 260, 'near4').setOrigin(0);
+    scene.add.tileSprite(0, 470, 960, 96, 'ground4').setOrigin(0);
+    scene.add.image(0, 0, 'vignette').setOrigin(0).setDepth(100);
+    return;
+  }
   if (theme === 'ice') {
     scene.add.image(0, 0, 'sky3').setOrigin(0);
     scene.add.tileSprite(0, 120, 960, 300, 'far3').setOrigin(0);
@@ -128,19 +140,91 @@ export class TitleScene extends Phaser.Scene {
       .setOrigin(0.5);
     this.tweens.add({ targets: cta, scale: 1.08, yoyo: true, repeat: -1, duration: 650, ease: 'Sine.inOut' });
 
-    // links diretos para testar: #fase2, #fase3
-    const m = /^#fase([23])$/.exec(location.hash);
+    // links diretos para testar: #fase2, #fase3, #fase4
+    const m = /^#fase([234])$/.exec(location.hash);
     if (m) unlock(Number(m[1]));
     const max = unlockedPhase();
     if (max >= 2 && !touch) {
-      const keys = max >= 3 ? '2 ou 3' : '2';
+      const keys = [2, 3, 4].filter((n) => n <= max).join(', ');
       this.add
         .text(W / 2, 290, `Tecla ${keys}: ir direto para a fase`, { fontFamily: FONT, fontSize: '17px', color: '#c8e0ff', stroke: '#1d1d28', strokeThickness: 4 })
         .setOrigin(0.5);
-      this.input.keyboard.once('keydown-TWO', () => this.scene.start('play', { phase: 2 }));
-      if (max >= 3) this.input.keyboard.once('keydown-THREE', () => this.scene.start('play', { phase: 3 }));
+      const names = { 2: 'TWO', 3: 'THREE', 4: 'FOUR' };
+      for (let n = 2; n <= max; n++) this.input.keyboard.once(`keydown-${names[n]}`, () => startPhase(this, n));
     }
     startOnInput(this, () => this.scene.start('play', { phase: 1 }));
+  }
+}
+
+/** Começa uma fase, passando pela história dela quando houver. */
+function startPhase(scene, phase, lives) {
+  if (LEVELS[phase]?.story) scene.scene.start('story', { phase, lives });
+  else scene.scene.start('play', { phase, lives });
+}
+
+// ------------------------------------------------------------------ história em quadros
+
+/**
+ * Narrativa entre fases: frases curtas, uma por quadro, com uma ilustração do próprio jogo.
+ * Enter/Espaço/clique avança; no último quadro, a fase começa.
+ */
+export class StoryScene extends Phaser.Scene {
+  constructor() {
+    super('story');
+  }
+
+  init(data) {
+    this.data_ = data;
+    this.page = 0;
+  }
+
+  create() {
+    this.pages = LEVELS[this.data_.phase].story;
+    this.show();
+    const next = () => {
+      this.page += 1;
+      if (this.page >= this.pages.length) this.scene.start('play', { phase: this.data_.phase, lives: this.data_.lives });
+      else this.show();
+    };
+    this.input.keyboard.on('keydown-ENTER', next);
+    this.input.keyboard.on('keydown-SPACE', next);
+    this.input.on('pointerdown', next);
+  }
+
+  show() {
+    const W = this.scale.width;
+    this.children.removeAll(true);
+    const p = this.pages[this.page];
+    if (p.art === 'castle3') {
+      backdrop(this, 'ice');
+      this.add.image(W / 2 + 120, 470, 'castle3').setOrigin(0.5, 1).setScale(0.5);
+      this.add.sprite(W / 2 - 60, 472, 'princess', 'wave').setOrigin(0.5, 1).setScale(1.4).setFlipX(true).play('princess-wave');
+      this.add.sprite(W / 2 - 150, 472, 'hero', 'idle0').setOrigin(0.5, 1).setScale(1.4).play('hero-idle');
+      this.cameras.main.shake(900, 0.006);
+    } else if (p.art === 'city') {
+      backdrop(this, 'city');
+      for (const [x, look] of [[260, 0], [420, 2], [620, 1]]) {
+        this.add.sprite(x, 472, `citizen${look}`, 'cower').setOrigin(0.5, 1).setScale(1.3);
+      }
+      this.cameras.main.shake(1200, 0.005);
+    } else {
+      backdrop(this, 'city');
+      this.add.rectangle(0, 0, W, 540, 0x1a1020, 0.45).setOrigin(0);
+      const t = this.add.sprite(W / 2 + 120, 472, 'spikeTitan', 'breath').setOrigin(0.5, 1).setScale(1.2).setFlipX(true);
+      this.add.sprite(W / 2 - 220, 472, 'hero', 'attack').setOrigin(0.5, 1).setScale(1.4);
+      this.tweens.add({ targets: t, y: 466, yoyo: true, repeat: -1, duration: 600 });
+    }
+    // caixa de texto
+    const g = this.add.graphics();
+    g.fillStyle(0x1d1d28, 0.78).fillRoundedRect(40, 40, W - 80, 140, 18);
+    g.lineStyle(3, 0xffe07a, 0.9).strokeRoundedRect(40, 40, W - 80, 140, 18);
+    this.add
+      .text(W / 2, 100, p.text, { fontFamily: FONT, fontSize: '26px', fontStyle: 'bold', color: '#ffffff', align: 'center', wordWrap: { width: W - 140 } })
+      .setOrigin(0.5);
+    const more = this.page < this.pages.length - 1 ? 'Enter: continuar' : 'Enter: começar a Fase ' + this.data_.phase;
+    const cta = this.add.text(W - 60, 160, more + '  ▶', { fontFamily: FONT, fontSize: '16px', color: '#ffe07a' }).setOrigin(1, 0.5);
+    this.tweens.add({ targets: cta, alpha: 0.4, yoyo: true, repeat: -1, duration: 600 });
+    this.add.text(60, 160, `${this.page + 1} / ${this.pages.length}`, { fontFamily: FONT, fontSize: '16px', color: '#c8c0d8' }).setOrigin(0, 0.5);
   }
 }
 
@@ -166,10 +250,15 @@ export class EndScene extends Phaser.Scene {
 
     if (won) {
       const castle = { day: 'castle', night: 'castle2', ice: 'castle3' }[theme];
-      this.add.image(W / 2, 470, castle).setOrigin(0.5, 1).setScale(0.55);
+      if (castle) this.add.image(W / 2, 470, castle).setOrigin(0.5, 1).setScale(0.55);
+      if (theme === 'city') {
+        const portal = this.add.image(W / 2 + 60, 360, 'portal').setScale(0.9);
+        this.tweens.add({ targets: portal, angle: 360, duration: 6000, repeat: -1 });
+        for (const [x, look] of [[W / 2 - 300, 0], [W / 2 - 250, 2], [W / 2 + 230, 1]]) this.add.sprite(x, 472, `citizen${look}`, 'idle').setOrigin(0.5, 1).setScale(1.2).play(`citizen${look}-cheer`);
+      }
       const hero = this.add.sprite(W / 2 - 180, 472, 'hero', 'idle0').setOrigin(0.5, 1).setScale(1.5);
       hero.play('hero-idle');
-      if (finalWin) {
+      if (phase === 3) {
         const p = this.add.sprite(W / 2 - 110, 472, 'princess', 'idle').setOrigin(0.5, 1).setScale(1.5).setFlipX(true);
         p.play('princess-wave');
       }
@@ -177,10 +266,12 @@ export class EndScene extends Phaser.Scene {
       this.add.image(W / 2, 466, 'hero-dead').setOrigin(0.5, 1).setScale(1.8);
     }
 
-    const title = finalWin ? 'PARABÉNS!' : won ? `FASE ${phase} CONCLUÍDA!` : 'FIM DE JOGO';
+    const title = finalWin ? 'VOCÊ É DEMAIS!' : won ? `FASE ${phase} CONCLUÍDA!` : 'FIM DE JOGO';
     const line = finalWin
-      ? 'O Pepe encontrou a princesa no Castelo Dourado. Você é demais!!'
-      : won
+      ? 'O Pepe salvou a Cidade das Torres e atravessou o portal para um novo mundo!'
+      : won && phase === 3
+        ? 'O Pepe encontrou a princesa! Mas lá longe, o chão começou a tremer...'
+        : won
         ? `O Pepe chegou ao castelo... mas a jornada continua: ${LEVELS[next].name}.`
         : `Os ${LEVELS[phase].enemyWord} venceram desta vez. O castelo ainda espera.`;
     this.add
@@ -207,7 +298,7 @@ export class EndScene extends Phaser.Scene {
     if (next) {
       const carry = livesForNextPhase(lives);
       label = `Enter: Fase ${next}  (você leva ${carry} vidas)`;
-      go = () => this.scene.start('play', { phase: next, lives: carry });
+      go = () => startPhase(this, next, carry);
     } else if (finalWin) {
       label = 'Enter: jogar de novo';
       go = () => this.scene.start('title');

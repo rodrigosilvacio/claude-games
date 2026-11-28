@@ -2,7 +2,9 @@ import Hero, { MOVE } from '../entities/Hero.js';
 import Dino from '../entities/Dino.js';
 import { Bat, Plant, Kaiju } from '../entities/Monsters.js';
 import { Yeti, Penguin, Ptero, Serpent } from '../entities/IceMonsters.js';
-import { HERO, shieldBlocks, applyDamage } from '../rules/combat.js';
+import { SpikeTitan, PlasmaTitan, Citizen, Trapped, dropRock, spawnSpike } from '../entities/CityStuff.js';
+import { HERO, DINOS, shieldBlocks, applyDamage } from '../rules/combat.js';
+import { createQuake, startQuake, stepQuake } from '../rules/cityRules.js';
 import {
   LEVELS,
   GROUND_Y,
@@ -82,6 +84,26 @@ const THEMES = {
     snowfall: true,
     shade: null,
   },
+  city: {
+    sky: 'sky4',
+    rays: true,
+    clouds: true,
+    mist: false,
+    layers: [
+      { key: 'far4', y: 150, h: 300, f: 0.08, depth: -8 },
+      { key: 'mid4', y: 250, h: 220, f: 0.22, depth: -6 },
+      { key: 'near4', y: GROUND_Y - 255, h: 260, f: 0.5, depth: -5 },
+    ],
+    castleFar: null,
+    castle: null,
+    tree: 'lamp',
+    bush: 'bench',
+    ground: 'ground4',
+    ledge: 'ledge4',
+    fence: 'barrier',
+    motes: { tint: [0xffffff, 0xffe8c0], y: [120, 460] },
+    shade: null,
+  },
 };
 
 function createEnemy(scene, type, x, enc) {
@@ -92,6 +114,8 @@ function createEnemy(scene, type, x, enc) {
   if (type === 'penguin') return new Penguin(scene, x, enc);
   if (type === 'ptero') return new Ptero(scene, x, enc);
   if (type === 'serpent') return new Serpent(scene, x, enc);
+  if (type === 'spikeTitan') return new SpikeTitan(scene, x, enc);
+  if (type === 'plasmaTitan') return new PlasmaTitan(scene, x, enc);
   return new Dino(scene, type, x, GROUND_Y, enc);
 }
 
@@ -116,7 +140,18 @@ export default class PlayScene extends Phaser.Scene {
     this.lastSafeX = 0;
     this.finale = null;
     this.finished = false;
-    this.counters = { blocked: 0, reflected: 0, reflectHits: 0, falls: 0 }; // para os testes
+    this.counters = { blocked: 0, reflected: 0, reflectHits: 0, falls: 0, rescued: 0, quakes: 0 }; // para os testes
+    this.citizens = [];
+    this.trapped = [];
+    this.quakes = [];
+    this.activeQuake = null;
+    this.quakeActive = false;
+    this.nextRumble = 0;
+    this.cheerUntil = 0;
+    this.cutscene = false;
+    this.cutscenesDone = new Set();
+    this.portal = null;
+    this.blockTextAt = 0;
     this.chest = null;
   }
 
@@ -153,10 +188,23 @@ export default class PlayScene extends Phaser.Scene {
     const walkers = this.enemies.filter((e) => e instanceof Dino || e.walker).map((e) => e.sprite);
     this.physics.add.collider(walkers, this.solids);
     this.physics.add.collider(walkers, this.fenceGroup);
-    const boss = this.enemies.find((e) => e instanceof Kaiju);
-    if (boss) this.physics.add.collider(boss.sprite, this.fenceGroup);
-    const serpent = this.enemies.find((e) => e instanceof Serpent);
-    if (serpent) this.physics.add.collider(serpent.sprite, this.fenceGroup);
+    for (const e of this.enemies) if (e instanceof Kaiju || e instanceof Serpent) this.physics.add.collider(e.sprite, this.fenceGroup);
+    // chefe que aparece numa cena (a usina): escondido até a cena acontecer
+    for (const e of this.enemies) {
+      if (!e.encounter.cutscene) continue;
+      e.sprite.setVisible(false);
+      e.sprite.body.enable = false;
+    }
+    if (L.startWithShield) {
+      this.hero.hasShield = true;
+      this.registry.set('shield', true);
+    }
+    this.citizens = (L.citizens ?? []).map((c) => new Citizen(this, c.x, c.look));
+    this.trapped = (L.trapped ?? []).map((t) => new Trapped(this, t.x, t.look));
+    this.quakes = (L.quakes ?? []).map((cfg, i) => ({ cfg, seed: 11 + i, q: createQuake(cfg, 11 + i) }));
+    if (L.portal) {
+      this.portal = this.add.image(L.portal.x, GROUND_Y - 110, 'portal').setDepth(-1).setScale(0).setAlpha(0);
+    }
     for (const m of this.movers) this.physics.add.collider(this.hero.sprite, m);
     if (this.chest) this.physics.add.overlap(this.hero.sprite, this.chest, () => this.openChest());
     this.lastSafeX = L.heroStartX;
@@ -221,7 +269,7 @@ export default class PlayScene extends Phaser.Scene {
     });
     // castelo no horizonte: aproxima devagar ao longo da jornada
     const cf = T.castleFar;
-    this.add.image(880, cf.y, cf.key).setOrigin(0.5, 1).setScale(cf.scale).setScrollFactor(0.025).setDepth(-7);
+    if (cf) this.add.image(880, cf.y, cf.key).setOrigin(0.5, 1).setScale(cf.scale).setScrollFactor(0.025).setDepth(-7);
     if (T.mist) {
       const mk = T.mistKey ?? 'mist';
       this.mist = this.add.tileSprite(0, GROUND_Y - 140, W, 160, mk).setOrigin(0).setScrollFactor(0).setDepth(-3);
@@ -286,7 +334,8 @@ export default class PlayScene extends Phaser.Scene {
       this.tweens.add({ targets: f, y: p.y - 6, yoyo: true, repeat: -1, duration: 700, ease: 'Sine.inOut' });
     }
 
-    this.castle = this.add.image(L.castleGateX, GROUND_Y + 8, T.castle).setOrigin(0.5, 1).setDepth(-1);
+    if (T.castle) this.castle = this.add.image(L.castleGateX, GROUND_Y + 8, T.castle).setOrigin(0.5, 1).setDepth(-1);
+    if (L.plant) this.plant = this.add.image(L.plant.x, GROUND_Y + 8, 'powerplant').setOrigin(0.5, 1).setDepth(-1.5);
     this.fenceGroup = this.physics.add.staticGroup();
   }
 
@@ -459,16 +508,21 @@ export default class PlayScene extends Phaser.Scene {
   }
 
   bossBar(e) {
-    this.registry.set('boss', e && e.alive ? { name: this.level.boss.name, ratio: e.fighter.hp / e.fighter.maxHp } : null);
+    const name = e?.encounter?.bossName ?? this.level.boss.name;
+    this.registry.set('boss', e && e.alive ? { name, ratio: e.fighter.hp / e.fighter.maxHp } : null);
   }
 
   checkEncounters() {
-    if (this.run.active) return;
+    if (this.run.active || this.cutscene || this.activeQuake) return;
     const x = this.hero.x;
     for (const enc of this.level.encounters) {
+      if (enc.cutscene && !this.cutscenesDone.has(enc.id) && !this.run.cleared.has(enc.id) && x > enc.x0 + 110 && x < enc.x1) {
+        this.playPlantCutscene(enc);
+        return;
+      }
       if (x > enc.x0 + 110 && x < enc.x1 && tryStartEncounter(this.run, enc.id)) {
         this.closeFences(enc);
-        const msg = enc.boss ? this.level.boss.intro : `${enc.name}: derrote os ${this.level.enemyWord}!`;
+        const msg = enc.boss ? enc.intro ?? this.level.boss.intro : `${enc.name}: derrote os ${this.level.enemyWord}!`;
         this.registry.set('banner', { text: msg, ms: 2200, danger: true });
         if (enc.boss) {
           this.cameras.main.shake(600, 0.014);
@@ -482,7 +536,7 @@ export default class PlayScene extends Phaser.Scene {
   closeFences(enc) {
     const list = [];
     for (const x of [enc.x0, enc.x1]) {
-      const f = this.fenceGroup.create(x, GROUND_Y + 4, 'fence').setOrigin(0.5, 1).setDepth(7);
+      const f = this.fenceGroup.create(x, GROUND_Y + 4, this.theme.fence ?? 'fence').setOrigin(0.5, 1).setDepth(7);
       f.refreshBody();
       f.setScale(1, 0.01);
       this.tweens.add({ targets: f, scaleY: 1, duration: 260, ease: 'Back.out' });
@@ -511,6 +565,17 @@ export default class PlayScene extends Phaser.Scene {
       this.popText(hz.sprite.x, hz.sprite.y - 16, 'corte!', '#c8ff9a', 16);
       hz.kill();
     }
+    this.trapped.forEach((t, i) => {
+      const id = `preso-${i}`;
+      if (t.freed || this.hero.attack.hitIds.has(id) || !Phaser.Geom.Intersects.RectangleToRectangle(box, t.bounds())) return;
+      this.hero.attack.hitIds.add(id);
+      if (!t.hit()) return;
+      this.counters.rescued++;
+      const life = gainLife(this.run);
+      this.popText(t.person.x, GROUND_Y - 110, life ? 'Obrigado, Pepe! +1 VIDA' : 'Obrigado, Pepe!', '#7dff8a', 20);
+      this.sparks.explode(16, t.person.x, GROUND_Y - 40);
+      this.syncRegistry();
+    });
     for (const d of this.enemies) {
       if (!d.alive || this.hero.attack.hitIds.has(d.id)) continue;
       if (!Phaser.Geom.Intersects.RectangleToRectangle(box, d.bounds())) continue;
@@ -539,8 +604,12 @@ export default class PlayScene extends Phaser.Scene {
       this.openFences(enc.id);
       const gained = this.hero.heal(HERO.clearHeal);
       if (gained > 0) this.time.delayedCall(500, () => this.popText(this.hero.x, this.hero.sprite.y - 80, `+${gained}`, '#7dff8a'));
-      const msg = enc.boss ? 'O portão está livre! Entre no castelo!' : 'Caminho livre!  →';
-      this.time.delayedCall(400, () => this.registry.set('banner', { text: msg, ms: 2000 }));
+      const allBosses = canEnterCastle(this.run, this.level);
+      let msg = enc.boss ? 'O portão está livre! Entre no castelo!' : 'Caminho livre!  →';
+      if (this.level.portal && enc.boss) msg = allBosses ? 'Um portal se abriu! Entre nele!  →' : 'Você venceu o titã! A cidade agradece!  →';
+      this.time.delayedCall(400, () => this.registry.set('banner', { text: msg, ms: 2400 }));
+      this.cheerUntil = this.time.now + 5000;
+      if (this.portal && allBosses) this.openPortal();
     }
     this.syncRegistry();
   }
@@ -552,13 +621,13 @@ export default class PlayScene extends Phaser.Scene {
     const boxes = [];
     for (const d of this.enemies) if (d.alive) boxes.push(...d.attackBoxes(now));
     for (const hz of this.hazards) {
-      if (!hz.dead) boxes.push({ rect: hz.box(), damage: hz.damage, fromX: hz.sprite.x, hazard: hz });
+      if (!hz.dead) boxes.push({ rect: hz.box(), damage: hz.damage, fromX: hz.fromX ?? hz.sprite.x, hazard: hz });
     }
     for (const a of boxes) {
       if (a.hazard?.friendly) continue;
       if (!Phaser.Geom.Intersects.RectangleToRectangle(heroBox, a.rect)) continue;
       const fromAbove = !!a.hazard?.fromAbove;
-      if (shieldBlocks(this.hero, { fromX: a.fromX, fromAbove })) {
+      if (shieldBlocks(this.hero, { fromX: a.fromX, fromAbove, unblockable: !!a.hazard?.unblockable })) {
         this.onBlocked(a);
         continue;
       }
@@ -579,6 +648,17 @@ export default class PlayScene extends Phaser.Scene {
     const h = this.hero;
     const fx = h.x + h.facing * 18;
     const fy = h.sprite.y - 44;
+    if (a.hazard?.persistent) {
+      // baforada contínua: o escudo segura, o herói escorrega um pouco para trás
+      h.sprite.body.setVelocityX(-h.facing * 90);
+      if (this.time.now > this.blockTextAt) {
+        this.blockTextAt = this.time.now + 700;
+        this.counters.blocked++;
+        this.sparks.explode(8, fx, fy);
+        this.popText(fx, fy - 30, 'segurou!', '#ffe07a', 16);
+      }
+      return;
+    }
     this.sparks.explode(10, fx, fy);
     this.counters.blocked++;
     if (a.hazard?.reflectable) {
@@ -650,9 +730,19 @@ export default class PlayScene extends Phaser.Scene {
   }
 
   respawn() {
-    const { x, encounterId } = respawnPoint(this.run, this.hero.x, this.level);
+    let { x, encounterId } = respawnPoint(this.run, this.hero.x, this.level);
     for (const hz of this.hazards) hz.kill();
     this.hazards = [];
+    if (this.activeQuake) {
+      // caiu no terremoto: volta antes dele, que vai começar de novo do zero
+      const Q = this.activeQuake;
+      this.openFences(Q.cfg.id);
+      Q.seed += 1;
+      Q.q = createQuake(Q.cfg, Q.seed);
+      this.activeQuake = null;
+      this.quakeActive = false;
+      x = Q.cfg.x0 - 120;
+    }
     if (encounterId) {
       this.openFences(encounterId);
       // inimigos da arena voltam ao começo; quem já levou golpes continua ferido
@@ -676,9 +766,136 @@ export default class PlayScene extends Phaser.Scene {
     this.run.finishedAt = this.time.now;
     this.hero.sprite.body.setVelocity(0, 0);
     if (this.level.finale) return this.playFinale();
+    if (this.level.portal) return this.enterPortal();
     this.cameras.main.flash(400, 255, 240, 200);
     this.tweens.add({ targets: [this.hero.sprite, this.hero.sword], alpha: 0, duration: 900 });
     this.time.delayedCall(1100, () => this.finish());
+  }
+
+  // ------------------------------------------------------------ Fase 4
+
+  beginQuake(Q) {
+    if (!startQuake(Q.q)) return;
+    this.activeQuake = Q;
+    this.quakeActive = true;
+    this.counters.quakes++;
+    this.closeFences({ id: Q.cfg.id, x0: Q.cfg.x0, x1: Q.cfg.x1 });
+    this.registry.set('banner', { text: '⚠ TERREMOTO! Proteja a cabeça!', ms: 2200, danger: true });
+    this.registry.set('keyHint', { key: 'S', label: 'segure para proteger a cabeça', ms: 4000 });
+    if (Q.cfg.spikesEveryMs > 0) {
+      this.time.delayedCall(Q.cfg.warnMs + 400, () => {
+        if (this.activeQuake === Q) this.registry.set('banner', { text: 'Espinhos no chão: quando brilhar, PULE!', ms: 2400, danger: true });
+      });
+    }
+  }
+
+  updateQuakes(time, delta) {
+    if (!this.activeQuake && !this.run.active && !this.cutscene && this.hero.alive) {
+      for (const Q of this.quakes) {
+        if (Q.q.state === 'idle' && this.hero.x > Q.cfg.trigger && this.hero.x < Q.cfg.x1) this.beginQuake(Q);
+      }
+    }
+    const Q = this.activeQuake;
+    if (!Q) return;
+    const out = stepQuake(Q.q, delta);
+    if (time > this.nextRumble) {
+      this.nextRumble = time + 200;
+      this.cameras.main.shake(230, out.state === 'warn' ? 0.0025 : 0.006);
+      if (out.state === 'shaking' && Math.random() < 0.5) this.dust.explode(3, this.hero.x + (Math.random() - 0.5) * 600, GROUND_Y);
+    }
+    const clamp = (x) => Phaser.Math.Clamp(x, Q.cfg.x0 + 40, Q.cfg.x1 - 40);
+    for (const off of out.debris) dropRock(this, clamp(this.hero.x + off), DINOS.spikeTitan.rockDamage);
+    const sp = DINOS.spikeTitan;
+    const spike = { warnMs: sp.spikeWarnMs, upMs: sp.spikeUpMs, damage: sp.spikeDamage, height: sp.spikeHeight };
+    for (const row of out.spikes) row.forEach((off, i) => this.time.delayedCall(i * 140, () => spawnSpike(this, clamp(this.hero.x + off), spike)));
+    if (out.ended) {
+      this.activeQuake = null;
+      this.quakeActive = false;
+      this.openFences(Q.cfg.id);
+      const gained = this.hero.heal(HERO.clearHeal);
+      if (gained > 0) this.popText(this.hero.x, this.hero.sprite.y - 80, `+${gained}`, '#7dff8a');
+      this.registry.set('banner', { text: 'O tremor passou! Ajude quem ficou preso  →', ms: 2400 });
+      this.cheerUntil = time + 3000;
+    }
+  }
+
+  /** A usina sobrecarrega, solta um clarão e o Titã de Plasma sai de lá. */
+  playPlantCutscene(enc) {
+    this.cutscene = true;
+    this.closeFences(enc);
+    this.registry.set('banner', { text: '⚠ A usina está sobrecarregando!', ms: 1600, danger: true });
+    this.tweens.add({ targets: this.plant, alpha: 0.55, yoyo: true, repeat: 5, duration: 140 });
+    const boss = this.enemies.find((e) => e.encounter.id === enc.id && e.stats.boss);
+    // a câmera vai até a usina para a criança ver o que acontece, e depois volta
+    const cam = this.cameras.main;
+    cam.stopFollow();
+    cam.pan(this.plant.x - 80, cam.midPoint.y, 900, Phaser.Math.Easing.Sine.InOut);
+    this.time.delayedCall(3000, () => cam.startFollow(this.hero.sprite, true, 0.08, 0.08, -60, 60));
+    this.time.delayedCall(1700, () => {
+      this.cameras.main.flash(700, 255, 250, 220);
+      this.cameras.main.shake(700, 0.018);
+      this.plant.setTexture('powerplantBroken').setAlpha(1);
+      this.embers.explode(40, this.plant.x, GROUND_Y - 180);
+      this.dust.explode(30, this.plant.x, GROUND_Y - 60);
+      if (boss) {
+        const s = boss.sprite;
+        const y = s.y;
+        s.setVisible(true).setAlpha(0).setY(y + 160);
+        this.tweens.add({ targets: s, y, alpha: 1, duration: 1000, ease: 'Cubic.out', onComplete: () => (s.body.enable = true) });
+      }
+    });
+    this.time.delayedCall(3400, () => {
+      this.cutscene = false;
+      this.cutscenesDone.add(enc.id);
+      if (boss) boss.sprite.body.enable = true;
+      if (tryStartEncounter(this.run, enc.id)) {
+        this.registry.set('banner', { text: enc.intro, ms: 2400, danger: true });
+        this.registry.set('keyHint', { key: 'S', label: 'segure de frente para a baforada', ms: 4000 });
+        this.bossBar(boss);
+      }
+    });
+  }
+
+  openPortal() {
+    const p = this.portal;
+    p.setAlpha(0).setScale(0.1);
+    this.tweens.add({ targets: p, alpha: 1, scale: 1, duration: 900, ease: 'Back.out' });
+    this.tweens.add({ targets: p, angle: 360, duration: 6000, repeat: -1 });
+    this.portalSparks = this.add.particles(p.x, p.y, 'mote', {
+      speed: { min: 20, max: 90 },
+      lifespan: 1200,
+      scale: { start: 1.2, end: 0 },
+      tint: [0xffe07a, 0xc8a0ff, 0x7af0ff],
+      frequency: 60,
+      blendMode: 'ADD',
+    }).setDepth(-1);
+  }
+
+  /** Final da Fase 4: o Pepe entra no portal para um novo mundo. */
+  enterPortal() {
+    const h = this.hero;
+    const p = this.portal;
+    this.finale = { stage: 'walk' };
+    this.registry.set('boss', null);
+    h.sprite.setAlpha(1);
+    h.shieldImg.setVisible(false);
+    h.sword.setVisible(false);
+    h.sprite.play('hero-run');
+    this.tweens.add({
+      targets: h.sprite,
+      x: p.x,
+      y: GROUND_Y - 60,
+      scale: 0.15,
+      angle: 540,
+      alpha: 0,
+      duration: 1300,
+      ease: 'Cubic.in',
+      onComplete: () => {
+        this.cameras.main.flash(600, 230, 210, 255);
+        this.tweens.add({ targets: p, scale: 1.6, duration: 600, yoyo: true });
+        this.celebrate(this.level.portal.message, p.x);
+      },
+    });
   }
 
   /** Final do jogo: a princesa sai do Castelo Dourado e vem até o herói. */
@@ -715,12 +932,12 @@ export default class PlayScene extends Phaser.Scene {
     });
   }
 
-  celebrate() {
+  celebrate(message = this.level.finale.message, heartsTo = this.princess?.x ?? this.hero.x + 40) {
     const W = this.scale.width;
     this.finale.stage = 'party';
     this.confetti.start();
     const hearts = this.add.particles(0, 0, 'heart', {
-      x: { min: this.hero.x - 10, max: this.princess.x + 10 },
+      x: { min: this.hero.x - 10, max: heartsTo + 10 },
       y: GROUND_Y - 90,
       speedY: { min: -90, max: -40 },
       speedX: { min: -30, max: 30 },
@@ -731,7 +948,7 @@ export default class PlayScene extends Phaser.Scene {
     }).setDepth(41);
     this.finaleHearts = hearts;
     const msg = this.add
-      .text(W / 2, 170, this.level.finale.message, {
+      .text(W / 2, 170, message, {
         fontFamily: 'Trebuchet MS, Verdana, sans-serif',
         fontSize: '54px',
         fontStyle: 'bold',
@@ -739,6 +956,7 @@ export default class PlayScene extends Phaser.Scene {
         stroke: '#4a1a5a',
         strokeThickness: 10,
         align: 'center',
+        wordWrap: { width: W - 80 },
       })
       .setOrigin(0.5)
       .setScrollFactor(0)
@@ -750,7 +968,7 @@ export default class PlayScene extends Phaser.Scene {
     this.cameras.main.flash(500, 255, 240, 200);
     this.time.delayedCall(3500, () => {
       const cta = this.add
-        .text(W / 2, 240, 'Enter ou clique para continuar', {
+        .text(W / 2, msg.y + msg.height / 2 + 34, 'Enter ou clique para continuar', {
           fontFamily: 'Trebuchet MS, Verdana, sans-serif', fontSize: '22px', fontStyle: 'bold', color: '#ffffff', stroke: '#1d1d28', strokeThickness: 6,
         })
         .setOrigin(0.5)
@@ -804,7 +1022,7 @@ export default class PlayScene extends Phaser.Scene {
 
     if (time < this.hitStopUntil) return; // congelado pelo impacto
 
-    const input = this.ended && this.hero.alive ? {} : this.readInput();
+    const input = (this.ended && this.hero.alive) || this.cutscene ? {} : this.readInput();
     if (!this.ended || !this.hero.alive) this.hero.update(input, time, dt);
     else this.hero.placeSword(time);
 
@@ -817,6 +1035,8 @@ export default class PlayScene extends Phaser.Scene {
         else d.shadow.setAlpha(d.sprite.active ? d.sprite.alpha * 0.5 : 0);
       }
     }
+    const cctx = { danger: this.quakeActive || this.cutscene, cheer: time < this.cheerUntil };
+    for (const c of this.citizens) c.update(cctx, dt);
     for (const m of this.movers) {
       if (m.x >= m.maxX) m.body.setVelocityX(-m.speed);
       else if (m.x <= m.minX) m.body.setVelocityX(m.speed);
@@ -833,6 +1053,7 @@ export default class PlayScene extends Phaser.Scene {
     if (this.ended) return;
 
     this.checkEncounters();
+    this.updateQuakes(time, delta);
     this.checkFall(time);
     this.resolveSword(time);
     this.resolveAttacks(time);

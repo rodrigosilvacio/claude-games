@@ -8,7 +8,8 @@
     "smoke": "node tests/smoke.mjs",
     "features": "node tests/features.mjs",
     "phase2": "node tests/phase2.mjs",
-    "phase3": "node tests/phase3.mjs"
+    "phase3": "node tests/phase3.mjs",
+    "phase4": "node tests/phase4.mjs"
   },
   "repository": {
     "type": "git",
