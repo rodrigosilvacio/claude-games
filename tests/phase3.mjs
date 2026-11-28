@@ -172,8 +172,6 @@ const fin = await page.evaluate(() => {
 if (!real) {
   check('pegou o escudo no baú', gotShield);
   check('venceu todos os monstros e a Serpente', fin.outcome === 'victory' && fin.kills === fin.total, `${fin.kills}/${fin.total}`);
-  check('o escudo bloqueou ataques', fin.counters?.blocked > 0, JSON.stringify(fin.counters));
-  check('estilhaço devolvido pelo escudo acertou a Serpente', fin.counters?.reflectHits > 0, JSON.stringify(fin.counters));
   check('a princesa saiu do castelo e veio até o herói', finale && fin.princess && fin.princess < fin.gateX && fin.princess > fin.heroX, JSON.stringify({ princesa: fin.princess, heroi: fin.heroX, portao: fin.gateX }));
   check('mensagem "Parabéns, você é demais!!" na tela', fin.text === 'Parabéns, você é demais!!' && fin.textVisible, fin.text);
   await page.keyboard.press('Enter');
@@ -181,8 +179,40 @@ if (!real) {
   await page.waitForTimeout(900);
   await page.screenshot({ path: `${outDir}p3-tela-final.png` });
   const end = await page.evaluate(() => ({ active: window.game.scene.isActive('end'), label: window.game.scene.getScene('end')?.next?.label, phase: window.game.scene.getScene('end')?.result?.phase }));
-  check('Enter leva à tela final da jornada', end.active && end.phase === 3 && end.label === 'Enter: jogar de novo', JSON.stringify(end));
+  check('Enter leva à tela da Fase 3 concluída, que oferece a Fase 4', end.active && end.phase === 3 && /Fase 4/.test(end.label ?? ''), JSON.stringify(end));
 }
+// 3) cenário montado: debaixo dos estilhaços, segurando S, eles voltam e acertam a Serpente
+if (!real) {
+  await page.evaluate(() => window.game.scene.getScene('end').scene.start('play', { phase: 3 }));
+  await page.waitForFunction(() => window.game.scene.isActive('play'));
+  await page.evaluate(() => {
+    const sc = window.game.scene.getScene('play');
+    sc.hero.hasShield = true;
+    sc.hero.sprite.body.reset(7300, 420);
+  });
+  await page.waitForFunction(() => window.game.scene.getScene('play').run.active === 'lago', null, { timeout: 8000 });
+  await page.keyboard.down('KeyS');
+  let refl = null;
+  for (let i = 0; i < 400; i++) {
+    refl = await page.evaluate(() => {
+      const sc = window.game.scene.getScene('play');
+      sc.hero.fighter.invulnUntil = sc.time.now + 1e9;
+      const shard = sc.hazards.find((z) => z.kind === 'shard' && !z.friendly && !z.dead);
+      const serp = sc.enemies.find((e) => e.type === 'serpent');
+      if (shard) {
+        sc.hero.sprite.body.reset(shard.sprite.x, sc.hero.sprite.y);
+        sc.hero.facing = Math.sign(serp.sprite.x - shard.sprite.x) || 1;
+      }
+      return { ...sc.counters, hp: serp.fighter.hp };
+    });
+    if (refl.reflectHits > 0) break;
+    await page.waitForTimeout(40);
+  }
+  await page.keyboard.up('KeyS');
+  check('o escudo bloqueou e devolveu um estilhaço', refl.blocked > 0 && refl.reflected > 0, JSON.stringify(refl));
+  check('estilhaço devolvido pelo escudo acertou a Serpente', refl.reflectHits > 0 && refl.hp < 340, JSON.stringify(refl));
+}
+
 await browser.close();
 server.close();
 

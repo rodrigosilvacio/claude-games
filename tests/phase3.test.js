@@ -20,8 +20,8 @@ import {
 
 const SWORD_REACH_UP = 80;
 
-test('Fase 3 é a última e está bem formada', () => {
-  assert.equal(LAST_PHASE, 3);
+test('Fase 3 está bem formada', () => {
+  assert.ok(LAST_PHASE >= 3);
   assert.equal(LEVELS[3], LEVEL_3);
   let prev = 0;
   for (const e of LEVEL_3.encounters) {

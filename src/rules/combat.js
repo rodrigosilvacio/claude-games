@@ -224,6 +224,64 @@ export const DINOS = {
     body: { w: 80, h: 170, ox: 90, oy: 38 },
     boss: true,
   },
+  // ---------------------------------------------------------------- Fase 4
+  // Dois titãs originais. Usam o mesmo cérebro do Colosso (aviso -> golpe -> recuperação);
+  // cada um troca o que os golpes fazem.
+  spikeTitan: {
+    label: 'Titã dos Espinhos',
+    kind: 'kaiju',
+    maxHp: 440, // 13 golpes
+    damage: 20, // pisão de perto
+    tailDamage: 18,
+    spikeDamage: 14,
+    rockDamage: 10,
+    walkSpeed: 60,
+    aggroRange: 900,
+    stompRange: 300,
+    tailRange: 260,
+    windup: { stomp: 1000, bolts: 950, tail: 650 },
+    activeMs: { stomp: 260, bolts: 400, tail: 320 },
+    recoverMs: 1200,
+    cooldownMs: 800,
+    turnDelayMs: 700,
+    enragedAt: 0.5,
+    spikeStep: 85, // distância entre os espinhos da fileira que vem pelo chão
+    spikeWarnMs: 700, // rachadura brilha antes do espinho sair
+    spikeUpMs: 800,
+    spikeHeight: 46, // dá para pular
+    knockbackTaken: 0,
+    poise: Infinity,
+    size: { w: 320, h: 210 },
+    body: { w: 220, h: 150, ox: 50, oy: 56 },
+    boss: true,
+  },
+  plasmaTitan: {
+    label: 'Titã de Plasma',
+    kind: 'kaiju',
+    maxHp: 520, // 16 golpes
+    damage: 22,
+    tailDamage: 20,
+    shockDamage: 18,
+    shockSpeed: 380,
+    shockHeight: 28,
+    beamDamage: 16,
+    beamLength: 640,
+    walkSpeed: 70,
+    aggroRange: 900,
+    stompRange: 300,
+    tailRange: 260,
+    windup: { stomp: 950, bolts: 1300, tail: 600 }, // a baforada carrega por mais tempo (boca acende)
+    activeMs: { stomp: 260, bolts: 1500, tail: 320 },
+    recoverMs: 1300, // superaquecido depois da baforada
+    cooldownMs: 700,
+    turnDelayMs: 650,
+    enragedAt: 0.5,
+    knockbackTaken: 0,
+    poise: Infinity,
+    size: { w: 300, h: 260 },
+    body: { w: 170, h: 150, ox: 65, oy: 108 },
+    boss: true,
+  },
 };
 
 export function createFighter(maxHp) {
@@ -270,7 +328,7 @@ export function jumpVelocity(height, gravity) {
  * Só quem ataca pelas costas atravessa a defesa.
  */
 export function shieldBlocks(hero, attack) {
-  if (!hero.blocking) return false;
+  if (!hero.blocking || attack.unblockable) return false; // espinhos do chão: pule!
   if (attack.fromAbove) return true;
   const dx = attack.fromX - hero.x;
   return Math.abs(dx) < 8 || Math.sign(dx) === hero.facing;

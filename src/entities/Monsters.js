@@ -215,11 +215,11 @@ export class Plant extends Enemy {
 // ------------------------------------------------------------------ Colosso de Magma
 
 export class Kaiju extends Enemy {
-  constructor(scene, x, encounter) {
-    super(scene, 'kaiju', encounter);
+  constructor(scene, x, encounter, type = 'kaiju') {
+    super(scene, type, encounter);
     this.brain = createKaijuBrain();
     const { size, body } = this.stats;
-    this.sprite = scene.physics.add.sprite(x, GROUND_Y - size.h / 2 + 4, 'kaiju', 'walk0').setDepth(9);
+    this.sprite = scene.physics.add.sprite(x, GROUND_Y - size.h / 2 + 4, type, 'walk0').setDepth(9);
     this.sprite.body.setAllowGravity(false).setImmovable(true);
     this.sprite.body.setSize(body.w, body.h).setOffset(body.ox, body.oy);
     this.sprite.setCollideWorldBounds(true);
@@ -248,7 +248,7 @@ export class Kaiju extends Enemy {
       s.anims.stop();
       s.setFrame(pose);
     } else if (out.state === 'walk' && Math.abs(out.vx) > 0) {
-      if (!s.anims.isPlaying) s.play('kaiju-walk');
+      if (!s.anims.isPlaying) s.play(`${this.type}-walk`);
     } else {
       s.anims.stop();
       if (out.state === 'recover') s.setFrame('walk0');

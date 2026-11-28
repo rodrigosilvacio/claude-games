@@ -260,8 +260,104 @@ export const LEVEL_3 = {
   ],
 };
 
-export const LEVELS = { 1: LEVEL, 2: LEVEL_2, 3: LEVEL_3 };
-export const LAST_PHASE = 3;
+// ------------------------------------------------------------------ Fase 4
+// Cidade das Torres: os terremotos vêm de um titã que acordou embaixo da cidade.
+// Terremoto não tira vidas de surpresa: avisa antes (tremor leve + alerta), as pedras
+// marcam o chão onde vão cair (proteja a cabeça com o escudo) e os espinhos rachando
+// o chão brilham antes de sair (pule). Moradores presos nos escombros: libertar = +1 vida.
+
+export const LEVEL_4 = {
+  id: 4,
+  name: 'Cidade das Torres',
+  theme: 'city',
+  worldWidth: 8600,
+  castleGateX: 8050, // aqui é o portal
+  heroStartX: 140,
+  startWithShield: true,
+  boss: { name: 'Titã de Plasma', intro: 'O Titã de Plasma saiu da usina!' },
+  enemyWord: 'titãs',
+  story: [
+    { art: 'castle3', text: 'A princesa agradeceu o Pepe. Mas, de repente... o chão tremeu!' },
+    { art: 'city', text: 'Lá longe, na Cidade das Torres, os tremores assustavam todo mundo.' },
+    { art: 'titan', text: 'Um titã de pedra acordou embaixo da cidade. O Pepe pegou a espada e o escudo e partiu!' },
+  ],
+  portal: { x: 8050, message: 'Seja bem-vindo ao novo mundo, você é demais!' },
+  quakes: [
+    { id: 'tremor-1', name: 'Primeiro tremor', x0: 1000, x1: 1800, trigger: 1180, warnMs: 1600, durationMs: 6000, debrisEveryMs: 700, spikesEveryMs: 0 },
+    { id: 'tremor-2', name: 'Tremor forte', x0: 2400, x1: 3300, trigger: 2580, warnMs: 1400, durationMs: 8000, debrisEveryMs: 900, spikesEveryMs: 1700 },
+  ],
+  encounters: [
+    {
+      id: 'avenida',
+      name: 'Avenida Central',
+      x0: 4000,
+      x1: 5300,
+      spawns: [{ type: 'spikeTitan', x: 4800 }],
+      boss: true,
+      bossName: 'Titã dos Espinhos',
+      intro: 'O Titã dos Espinhos é quem causa os terremotos!',
+    },
+    {
+      id: 'usina',
+      name: 'Usina de Energia',
+      x0: 6200,
+      x1: 7700,
+      spawns: [{ type: 'plasmaTitan', x: 7200 }],
+      boss: true,
+      bossName: 'Titã de Plasma',
+      intro: 'O Titã de Plasma saiu da usina!',
+      cutscene: 'plant',
+    },
+  ],
+  plant: { x: 7250 },
+  citizens: [
+    { x: 420, look: 0 },
+    { x: 760, look: 1 },
+    { x: 2050, look: 2 },
+    { x: 3650, look: 0 },
+    { x: 5650, look: 1 },
+    { x: 5950, look: 2 },
+  ],
+  trapped: [
+    { x: 1700, look: 1 },
+    { x: 3200, look: 2 },
+    { x: 5550, look: 0 },
+  ],
+  ledges: [
+    { x: 560, y: 380, w: 150 },
+    { x: 3550, y: 370, w: 150 }, // praça (descanso)
+    { x: 3780, y: 360, w: 140 },
+    { x: 4300, y: 360, w: 140 }, // refúgios na avenida
+    { x: 5000, y: 360, w: 140 },
+    { x: 5780, y: 370, w: 150 }, // descanso antes da usina
+    { x: 6500, y: 360, w: 140 }, // refúgios na usina: a baforada passa por baixo
+    { x: 7450, y: 360, w: 140 },
+  ],
+  pickups: [
+    { x: 635, y: 340 },
+    { x: 3625, y: 330 },
+    { x: 3850, y: 320 },
+    { x: 4100, y: 440 },
+    { x: 4370, y: 320 },
+    { x: 5070, y: 320 },
+    { x: 5855, y: 330 },
+    { x: 6050, y: 440 },
+    { x: 6300, y: 440 },
+    { x: 6570, y: 320 },
+    { x: 7520, y: 320 },
+  ],
+  beats: [
+    { room: 'tremor-1', type: 'teach', intensity: 0.3 }, // escudo na cabeça
+    { room: 'tremor-2', type: 'teach', intensity: 0.5 }, // pular os espinhos
+    { room: 'praca', type: 'rest', intensity: 0.1 },
+    { room: 'avenida', type: 'combat', intensity: 0.9 }, // primeiro titã
+    { room: 'praca-norte', type: 'rest', intensity: 0.15 },
+    { room: 'usina', type: 'climax', intensity: 1 }, // segundo titã
+  ],
+};
+
+export const LEVELS = { 1: LEVEL, 2: LEVEL_2, 3: LEVEL_3, 4: LEVEL_4 };
+export const LAST_PHASE = 4;
 
 /** Buraco de neve que contém x, ou null. */
 export function gapAt(x, level) {
@@ -330,8 +426,8 @@ export function recordKill(run, encounterId) {
 
 /** Só se entra no castelo depois de vencer o chefe do portão. */
 export function canEnterCastle(run, level = LEVEL) {
-  const boss = level.encounters.find((e) => e.boss);
-  return boss ? run.cleared.has(boss.id) : true;
+  // todos os chefes da fase (a Fase 4 tem dois)
+  return level.encounters.filter((e) => e.boss).every((e) => run.cleared.has(e.id));
 }
 
 export function progress(heroX, level = LEVEL) {
